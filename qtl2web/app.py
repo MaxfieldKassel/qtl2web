@@ -16,6 +16,7 @@ from qtl2web.modules.api.views import api
 from qtl2web.modules.page.views import page
 from qtl2web.extensions import compress
 from qtl2web.utils import ReverseProxied
+from werkzeug.middleware.proxy_fix import ProxyFix 
 
 
 CELERY_TASK_LIST = [
@@ -65,7 +66,6 @@ def create_app():
     :return: Flask app
     """
     app = Flask(__name__, instance_relative_config=True)
-
     app.config.from_object('qtl2web.config.settings')
 
     app.logger.setLevel(app.config['LOG_LEVEL'])
@@ -129,7 +129,8 @@ def middleware(app):
     :return: None
     """
     app.wsgi_app = ReverseProxied(app.wsgi_app)
-
+    # Fixes the issue with the proxy not passing the correct scheme to the app
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
     return None
 
 
