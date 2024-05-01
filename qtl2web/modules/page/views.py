@@ -78,7 +78,7 @@ def index():
     return render_template('page/index.html',
                            search_term=search_term, datasetid=datasetid,
                            debug=debug, app_version=app_version, admin=admin,
-                           TECHNOLOGIES=tech.TECHNOLOGIES)
+                           TECHNOLOGIES=tech.TECHNOLOGIES, api_url=current_app.config['API_URL'])
 
 
 '''
