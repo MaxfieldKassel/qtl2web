@@ -801,101 +801,18 @@
 
     <script> 
         const debugMode = {{ debug|tojson }};
+        const chromosomeBaseURL = `{{ url_for('api.api_get', url='', _external=False) }}${window.location.protocol}//{{ api_url }}/api/chromosomes`;
+        const lodPeaksBaseURL = '{{ url_for('api.api_get', url=config.API_R_BASE + '/lodpeaks', _external=False) }}';
+        const envInfoURL = '{{ url_for('api.api_get', url=config.API_R_BASE + '/envinfo', _external=False) }}';
+        const dataSetsURL = '{{ url_for('api.api_get', url=config.API_R_BASE + '/datasets', _external=False) }}';
     </script>  
 
     <script src="{{ url_for('static', filename='js/utilities.js') }}"></script>
     <script src="{{ url_for('static', filename='js/config.js') }}"></script>
     <script src="{{ url_for('static', filename='js/high_chart.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery.extensions.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/download.js') }}"></script>
     <script>
-
-   
-
-    
-
-    // enhance the original "$.ajax" with a retry mechanism
-    $.ajax = (($oldAjax) => {
-        // on fail, retry by creating a new Ajax deferred
-        function check(a, b, c){
-            logDebug('CHECK', a, b, c);
-            let shouldRetry = (b !== 'success' && b !== 'parsererror');
-            if( shouldRetry && --this.retries > 0 ) {
-                setTimeout(() => {
-                    $.ajax(this);
-                }, this.retryInterval || 100);
-            }
-        }
-
-        return settings => $oldAjax(settings).always(check);
-    })($.ajax);
-
-
-    /** USAGE:
-     * now we can use the "retries" property if we need to retry on fail
-    $.ajax({
-        type          : 'GET',
-        url           : 'http://www.whatever123.gov',
-        timeout       : 2000,
-        retries       : 3,     //       <-------- Optional
-        retryInterval : 2000   //       <-------- Optional
-    })
-    // "fail" will only be called once, and not for each retry
-    .fail(console.warn);
-     */
-
-
-    /**
-     *  Extended disable function
-     */
-    jQuery.fn.extend({
-        disable: function(state) {
-            return this.each(function() {
-                let $this = $(this);
-                if($this.is('input, button, textarea, select')) {
-                    this.disabled = state;
-                } else {
-                    $this.toggleClass('disabled', state);
-                }
-            });
-        }
-    });
-
-    /**
-     * Download data.
-     *
-     * From d3.js documentation:
-     *
-     * When a task completes, it must call the provided callback.
-     *
-     * The first argument to the callback should be null if the task is
-     * successful, or the error if the task failed.
-     *
-     * The optional second argument to the callback is the return value of the task.
-     * (To return multiple values from a single callback, wrap the results in an object or array.)
-     *
-     * @param {string} URL - the URL to download data
-     * @param {string} description - descriptive text
-     * @param {function} callback - the callback function
-     */
-    function downloadData(URL, description, callback) {
-        logDebug('Downloading: ', URL);
-
-        $.ajax({
-            url: URL,
-            method: 'GET',
-        }).done(function(data, textStatus, jqXHR) {
-            logInfo(`Download of ${description}`);
-            logDebug(`Download of ${description}:`, data);
-
-            data['_url'] = URL;
-            data['_description'] = description;
-
-            callback(null, data);
-        }).fail(function(jqXHR, textStatus, errorThrown) {
-            logError(description, textStatus);
-            logError(description, textStatus, errorThrown);
-            callback(errorThrown, null);
-        });
-    }
 
     function sortObj(obj) {
         return Object.keys(obj).sort().reduce(function (result, key) {
@@ -2217,44 +2134,6 @@
         function stopTask() {
             g.runningTask = false;
             Swal.close();
-        }
-
-        /**
-         * Download chomo
-         * @param release
-         * @param species
-         * @param _id
-         * @param callback
-         */
-        function downloadChromosomes(release, species, _id, callback) {
-            let chromosomeURL = `{{ url_for('api.api_get', url='', _external=False) }}${g.PROTOCOL}//{{ api_url }}/api/chromosomes`;
-            let amp = '';
-
-            if (release !== null) {
-                chromosomeURL += `?release=${release}`;
-                amp = '&';
-            }
-
-            if (species !== null) {
-                chromosomeURL += `${amp}species=${species}`;
-            }
-
-            downloadData(chromosomeURL, `Chromosomes ${_id}`, callback);
-        }
-
-        function downloadLODPeaks(dataSetID, callback) {
-            let lodPeaksURL = `{{ url_for('api.api_get', url=config.API_R_BASE + '/lodpeaks', _external=False) }}?dataset=${dataSetID}`;
-            downloadData(lodPeaksURL, 'LODPeaks', callback);
-        }
-
-        function downloadEnvInfo(callback) {
-            let envInfoURL = '{{ url_for('api.api_get', url=config.API_R_BASE + '/envinfo', _external=False) }}';
-            downloadData(envInfoURL, 'envInfo', callback);
-        }
-
-        function downloadDataSets(callback) {
-            let dataSetsURL = '{{ url_for('api.api_get', url=config.API_R_BASE + '/datasets', _external=False) }}';
-            downloadData(dataSetsURL, 'dataSets', callback);
         }
 
         function exportSNPAssocData(id, snps, genes) {
