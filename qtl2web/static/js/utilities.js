@@ -471,3 +471,21 @@ function downloadCSV(content, fileName, mimeType = 'application/octet-stream') {
 function randomInterval(min, max) {
     return Math.floor(Math.random() * (max - min + 1) + min);
 };
+
+
+/**
+ * Sorts the keys of the given object and returns a new object with sorted keys.
+ * This function does not modify the original object but returns a new one where
+ * the keys are sorted in ascending alphabetical order.
+ *
+ * @param {Object} obj - The object whose keys are to be sorted.
+ * @return {Object} A new object with the same keys and values as the input, but with keys sorted.
+ */
+function sortObj(obj) {
+    // Use Object.keys to get an array of the object's keys, then sort them alphabetically.
+    return Object.keys(obj).sort().reduce((result, key) => {
+        // Accumulate each key-value pair in 'result', preserving their original values.
+        result[key] = obj[key];
+        return result;
+    }, {});
+}
