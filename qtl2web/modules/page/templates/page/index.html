@@ -905,26 +905,10 @@
             g.expressionData = null;
             g.searchTable = null;
             g.orderCount = null;
-            g.secondaryPlotMarkerID = null;
-            g.secondaryPlotChromosome = null;
-            g.secondaryPlotLocation = null;
-            g.secondaryPlotCovar = null;
 
-            /*
-             * Chart variables
-             */
-            g.chartPeaks = null;
-            g.chartLOD = null;
-            g.chartLODCovariateFull = null;
-            g.chartLODCovariateDiff = null;
-            g.chartMediation = null;
-            g.chartEffect = null;
-            g.chartSNPAssoc = null;
 
             // for tasks
             g.runningTask = false;
-
-            g.PROTOCOL = window.location.protocol;
 
             d3.queue()
                 .defer(downloadEnvInfo)
@@ -935,19 +919,17 @@
 
                     if (error) {
                         logError(error);
-                        {% if not debug -%}
-                        // ?debug=1 will prevent forwarding on error
-                        window.location = '{{ url_for('page.error') }}';
-                        {%- endif %}
+                        if (!debugMode) { // redirect to error page if not in debug mode
+                            window.location = '{{ url_for('page.error') }}';
+                        }
                         return;
                     }
 
                     if ((data.result === undefined) || (data.result.datasets.length === 0)) {
                         logError('data=', data);
-                        {% if not debug -%}
-                        // ?debug=1 will prevent forwarding on error
-                        window.location = '{{ url_for('page.error') }}';
-                        {%- endif %}
+                        if (!debugMode) { // redirect to error page if not in debug mode
+                            window.location = '{{ url_for('page.error') }}';
+                        }
                         return;
                     }
 
@@ -955,20 +937,12 @@
 
                     buildEnvInfo(envInfo.result);
 
-                    let ensembl_release = null;
-                    if ('ensembl.version' in data.result) {
-                        ensembl_release  = data.result['ensembl.version'];
-                    }
-                    if ('ensembl_version' in data.result) {
-                        ensembl_release  = data.result['ensembl_version'];
-                    }
-                    // the new way is RELEASE, replacing VERSION
-                    if ('ensembl.release' in data.result) {
-                        ensembl_release  = data.result['ensembl.release'];
-                    }
-                    if ('ensembl_release' in data.result) {
-                        ensembl_release  = data.result['ensembl_release'];
-                    }
+                    // Possible keys for the Ensembl release version.
+                    const possibleKeys = ['ensembl.version', 'ensembl_version', 'ensembl.release', 'ensembl_release'];
+
+                    // Find the first existing key and retrieve its value directly.
+                    const keyFound = possibleKeys.find(key => key in data.result);
+                    const ensembl_release = keyFound ? data.result[keyFound] : null;
 
                     // to display dropdown menu by alphabetical name
                     let datasets_dropdown = {};
@@ -1963,7 +1937,7 @@
             });
 
 
-            g.chartPeaks = genomeSpyEmbed.embed(
+            genomeSpyEmbed.embed(
                 document.querySelector("#plotLodPeaks"),
                 spec,
                 {
@@ -3025,7 +2999,7 @@
 
             $('#plotSNPAssociation').height('500');
 
-            g.chartSNPAssoc = genomeSpyEmbed.embed(
+            genomeSpyEmbed.embed(
                 document.querySelector("#plotSNPAssociation"),
                 spec,
                 {
@@ -3064,7 +3038,7 @@
             logDebug('maxPos=', maxPos);
 
             let snpAssocURL = `{{ config.API_R_BASE }}/snpassoc?dataset=${g.dataSetID}&id=${id}&chrom=${chromosome}&location=${locationMb}&window_size=${zoomWindow}`;
-            let genesInfoURL = `${g.PROTOCOL}//{{ api_url }}/api/exon_info?release=${g.DATASETS[g.dataSetID].ensembl_release}&species=${g.DATASETS[g.dataSetID].ensembl_species}&chrom=${chromosome}`;
+            let genesInfoURL = `${window.location.protocol}//{{ api_url }}/api/exon_info?release=${g.DATASETS[g.dataSetID].ensembl_release}&species=${g.DATASETS[g.dataSetID].ensembl_species}&chrom=${chromosome}`;
 
             if (covar !== 'additive') {
                 snpAssocURL += `&intcovar=${covar}`;
@@ -3099,7 +3073,6 @@
             startTask();
 
             // reset the chart and clear it
-            g.chartSNPAssoc = null;
 
             $('#snpWindowMenuShift').html('');
             $('#snpWindowMenu').html('');
@@ -3198,7 +3171,6 @@
                 logDebug('canceling');
                 let cancelURL = `{{ url_for('api.api_cancel', group_id='', _external=False) }}${groupID}`;
                 $.getJSON(cancelURL, function (data) {
-                    g.chartSNPAssoc = null;
                     $('#snpWindowMenuShift').html('');
                     $('#snpWindowMenu').html('');
                     $('#plotSNPAssociation').html('');
@@ -3442,7 +3414,7 @@
                 plotTitle += (' (' + category + ')');
             }
 
-            g.chartEffect[category] = Highcharts.chart({
+            Highcharts.chart({
                 boost: {
                     useGPUTranslations: true
                 },
@@ -3823,7 +3795,7 @@
             });
 
 
-            g.chartMediation = genomeSpyEmbed.embed(
+            genomeSpyEmbed.embed(
                 document.querySelector("#plotMediationChart"),
                 spec,
                 {
@@ -3856,7 +3828,6 @@
             startTask();
 
             // reset the chart and clear it
-            g.chartMediation = null;
             $('#plotMediation').html('');
 
             $.ajax({
@@ -3948,7 +3919,6 @@
                 let cancelURL = `{{ url_for('api.api_cancel', group_id='', _external=False) }}${groupID}`;
                 $.getJSON(cancelURL, function (data) {
                     logDebug(data);
-                    g.chartMediation = null;
                     $('#plotMediation').html('');
                 });
             }
@@ -3985,7 +3955,6 @@
             startTask();
 
             // reset the chart and clear it
-            g.chartEffect = {};
             $('#allEffectPlots').html('');
 
             $.ajax({
@@ -4079,7 +4048,6 @@
                 let cancelURL = `{{ url_for('api.api_cancel', group_id='', _external=False) }}${groupID}`;
                 $.getJSON(cancelURL, function (data) {
                     logDebug(data);
-                    g.chartEffect = null;
                     $('#allEffectPlots').html('');
                 });
             }
@@ -4272,11 +4240,7 @@
 
             // clear LOD Plot
             // TODO: clear LOD PLOT, Profile PLOT
-            g.chartLOD = null;
-            g.chartLODCovariateFull = null;
-            g.chartLODCovariateDiff = null;
             g.chartCorrelation = null;
-            g.chartEffect = null;
             $('#lodPlotChart').html('');
             $('#lodPlotChartCovariateFull').html('');
             $('#lodPlotChartCovariateDiff').html('');
@@ -5227,10 +5191,6 @@
                             let location = this.hoverPoint.chrPos;
                             let covar = this.hoverPoint.covar;
 
-                            g.secondaryPlotMarkerID = markerID;
-                            g.secondaryPlotChromosome = chromosome;
-                            g.secondaryPlotLocation = location;
-                            g.secondaryPlotCovar = covar;
 
                             logDebug('event', markerID, chromosome, location, this.hoverPoint.covar);
 
@@ -5252,11 +5212,6 @@
                                 let chromosome = event.point.chr;
                                 let location = event.point.chrPos;
                                 let covar = event.point.covar;
-
-                                g.secondaryPlotMarkerID = markerID;
-                                g.secondaryPlotChromosome = chromosome;
-                                g.secondaryPlotLocation = location;
-                                g.secondaryPlotCovar = covar;
 
                                 logDebug('series', markerID, chromosome, location, event.point.covar);
 
@@ -5328,16 +5283,6 @@
                     {% endif %}
                 },
             });
-
-            if (isCovar) {
-                if (isFull) {
-                    g.chartLODCovariateFull = chartLOD;
-                } else {
-                    g.chartLODCovariateDiff = chartLOD;
-                }
-            } else {
-                g.chartLOD = chartLOD;
-            }
         }
 
 
@@ -6206,9 +6151,6 @@
         }
 
         function resetSecondaryPlots() {
-            g.chartMediation = null;
-            g.chartEffect = {};
-            g.chartSNPAssoc = null;
             $('#plotMediation').html('');
             $('#allEffectPlots').html('');
             $('#plotSNPAssociation').html('');
@@ -6353,10 +6295,6 @@
             g.proteinID = null;
             g.phosID = null;
             g.phenotypeID = phenotypeID;
-            g.secondaryPlotMarkerID = null;
-            g.secondaryPlotChromosome = null;
-            g.secondaryPlotLocation = null;
-            g.secondaryPlotCovar = null;
             g.correlationData = null;
             g.correlationDatasetID = dataSetID;
             g.LODChartData = {};
@@ -6413,10 +6351,6 @@
 
             $('#div_current_item_information_header').html('');
             $('#div_current_item_information_body').html('');
-
-            g.chartLOD = null;
-            g.chartLODCovariateFull = null;
-            g.chartLODCovariateDiff = null;
             $('#lodPlotChart').html('');
             $('#lodPlotChartCovariateFull').html('');
             $('#lodPlotChartCovariateDiff').html('');
@@ -6608,7 +6542,7 @@
         function selectGeneProtein(geneID, proteinID, phosID, dataSetID, covar) {
             logDebug(`selectGeneProtein(${geneID}, ${proteinID}, ${phosID}, ${dataSetID}, ${covar})`);
 
-            let urlGeneData = `${g.PROTOCOL}//{{ api_url }}/api/gene/${geneID}`;
+            let urlGeneData = `${window.location.protocol}//{{ api_url }}/api/gene/${geneID}`;
             urlGeneData += ('?release=' + g.DATASETS[dataSetID].ensembl_release);
             urlGeneData += ('&species=' + g.DATASETS[dataSetID].ensembl_species);
 
@@ -6622,10 +6556,6 @@
             g.proteinID = proteinID;
             g.phosID = phosID;
             g.phenotypeID = null;
-            g.secondaryPlotMarkerID = null;
-            g.secondaryPlotChromosome = null;
-            g.secondaryPlotLocation = null;
-            g.secondaryPlotCovar = null;
             g.correlationData = null;
             g.correlationDatasetID = dataSetID;
             g.LODChartData = {};
@@ -6707,10 +6637,6 @@
 
             $('#div_current_item_information_header').html('');
             $('#div_current_item_information_body').html('');
-
-            g.chartLOD = null;
-            g.chartLODCovariateFull = null;
-            g.chartLODCovariateDiff = null;
             $('#lodPlotChart').html('');
             $('#lodPlotChartCovariateFull').html('');
             $('#lodPlotChartCovariateDiff').html('');
@@ -6863,14 +6789,9 @@
             if (covariate === 'additive') {
                 // remove all other graphs
                 logDebug('additive, clear others');
-                g.chartLODCovariateFull = null;
-                g.chartLODCovariateDiff = null;
                 $('#lodPlotChartCovariateFull').html('');
                 $('#lodPlotChartCovariateDiff').html('');
             } else {
-                g.chartLODChart = null;
-                g.chartLODCovariateFull = null;
-                g.chartLODCovariateDiff = null;
                 $('#lodPlotChart').html('');
                 $('#lodPlotChartCovariateFull').html('');
                 $('#lodPlotChartCovariateDiff').html('');
@@ -6890,11 +6811,6 @@
             } else {
                 logDebug('covar NOT in g.LODChartData, so go get it');
                 let urlLOD = `{{ config.API_R_BASE }}/lodscan?dataset=${g.dataSetID}&id=`;
-
-                g.secondaryPlotMarkerID = null;
-                g.secondaryPlotChromosome = null;
-                g.secondaryPlotLocation = null;
-                g.secondaryPlotCovar = null;
 
                 if (g.DATASETS[g.dataSetID].datatype === 'mrna') {
                     urlLOD += `${g.geneID}`;
