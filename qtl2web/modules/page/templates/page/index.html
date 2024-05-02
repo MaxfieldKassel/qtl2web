@@ -2348,9 +2348,7 @@
             downloadCSV(csvContent, `${id}_SNPASSOC.csv`, 'text/csv;encoding:utf-8');
         }
 
-        function randomInterval(min, max) { // min and max included
-            return Math.floor(Math.random() * (max - min + 1) + min)
-        }
+        
 
         function createGeneRankings(geneRankings, geneInfo) {
             let rankings = {};
@@ -5196,28 +5194,6 @@
             }
         }
 
-        // The download function takes a CSV string, the filename and mimeType as parameters
-        // Scroll/look down at the bottom of this snippet to see how download is called
-        function downloadCSV(content, fileName, mimeType) {
-            let a = document.createElement('a');
-            mimeType = mimeType || 'application/octet-stream';
-
-            if (navigator.msSaveBlob) { // IE10
-                navigator.msSaveBlob(new Blob([content], {
-                    type: mimeType
-                }), fileName);
-            } else if (URL && 'download' in a) { //html5 A[download]
-                a.href = URL.createObjectURL(new Blob([content], {
-                    type: mimeType
-                }));
-                a.setAttribute('download', fileName);
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            } else {
-                location.href = 'data:application/octet-stream,' + encodeURIComponent(content); // only this mime type is supported
-            }
-        }
 
         function exportLODChartData(id, data, covar, exportName) {
             let csvContent = '"id","chromosome","position","lod"\n';

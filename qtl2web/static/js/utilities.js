@@ -4,11 +4,19 @@
  */
 
 
+/**
+ * Checks if the provided parameter is considered "empty".
+ * An object is considered empty if it is null or has no enumerable own properties.
+ * @param {Object|null} obj - The object to check for emptiness.
+ * @return {boolean} - True if the object is null or has no own properties, false otherwise.
+ */
 function isEmpty(obj) {
-    if (obj === null) {
+    // Directly return true if obj is null or is not an object.
+    if (obj === null || typeof obj !== 'object') {
         return true;
     }
 
+    // Check if the object has no own enumerable properties.
     return Object.keys(obj).length === 0;
 }
 
@@ -96,16 +104,16 @@ function permutateArrays(arraysToCombine) {
  * @param x {number} Array of numbers.
  * @returns {string} The converted bytes into the highest unit.
  */
-function niceBytes(x){
+function niceBytes(x) {
     let units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
     let l = 0;
     let n = parseInt(x, 10) || 0;
 
-    while(n >= 1024 && ++l){
-        n = n/1024;
+    while (n >= 1024 && ++l) {
+        n = n / 1024;
     }
 
-  return(n.toFixed(n < 10 && l > 0 ? 1 : 0) + ' ' + units[l]);
+    return (n.toFixed(n < 10 && l > 0 ? 1 : 0) + ' ' + units[l]);
 }
 
 
@@ -143,10 +151,10 @@ function numSort(a, b) {
  */
 function getPercentile(data, percentile) {
     data.sort(numSort);
-    let index = (percentile/100) * data.length;
+    let index = (percentile / 100) * data.length;
     let result;
     if (Math.floor(index) === index) {
-         result = (data[(index-1)] + data[index])/2;
+        result = (data[(index - 1)] + data[index]) / 2;
     }
     else {
         result = data[Math.floor(index)];
@@ -163,17 +171,19 @@ function getPercentile(data, percentile) {
 function getBoxValues(data) {
     let filteredData = [];
 
-    $.each(data, function(idx, elem) {
+    $.each(data, function (idx, elem) {
         if (!isNaN(elem)) {
             filteredData.push(elem);
         }
     });
 
-    return {low: Math.min.apply(Math, filteredData),
-            q1: getPercentile(filteredData, 25),
-            median: getPercentile(filteredData, 50),
-            q3: getPercentile(filteredData, 75),
-            high: Math.max.apply(Math, filteredData)};
+    return {
+        low: Math.min.apply(Math, filteredData),
+        q1: getPercentile(filteredData, 25),
+        median: getPercentile(filteredData, 50),
+        q3: getPercentile(filteredData, 75),
+        high: Math.max.apply(Math, filteredData)
+    };
 }
 
 
@@ -183,202 +193,281 @@ function getBoxValues(data) {
  **
  *************************************************************************/
 
-
+/**
+ * Creates a new shelf with a specified width.
+ * @param {number} width - The total width available on the shelf.
+ * @return {Object} A shelf object with properties for width, free space, used space, and stored elements.
+ */
 function createShelf(width) {
     return {
         width: width,
         free: width,
         used: 0,
         elements: []
-    }
+    };
 }
 
+/**
+ * Adds items to shelves based on their dimensions and available shelf space, considering spacing constraints.
+ * If items cannot fit on existing shelves, new shelves are created as needed.
+ * @param {Array} shelves - An array of shelf objects that may already contain items.
+ * @param {Array} items - An array of items to be added, where each item has 'start', 'end', and other relevant properties.
+ * @param {number} width - The width of new shelves to be created if necessary.
+ * @return {Array} An updated array of shelves with the new items added where possible.
+ */
 function addItems(shelves, items, width) {
-
     if (shelves.length === 0) {
         shelves.push(createShelf(width));
     }
 
-    let spacing = 1000;
-    //items.sort(function(a, b) {
-    //    return (a.position_start - b.position_start);
-    //});
+    const spacing = 1000;
+    // Sort items by their size (end - start) in descending order
+    items.sort((a, b) => (b.position_end - b.position_start) - (a.position_end - a.position_start));
 
-    items.sort(function(a, b) {
-        return (b.position_end - b.position_start) - (a.position_end - a.position_start);
-    });
+    for (const item of items) {
+        let isItemShelved = false;
 
-    //console.log('ADD ITEMS');
-    $.each(items, function(i, item) {
-        //console.log('ITEM=', item.name, item.position_end - item.position_start)
-        let shelved = false;
-        $.each(shelves, function(x, shelf) {
-
-            if (shelf.elements.length === 0) {
-                shelf.elements.push(item);
-                shelf.free -= (item.end - item.start);
-                shelf.used += (item.end - item.start);
-                shelved = true;
-                // break out of loop, go to next item
-                return false;
-            }
-
-            // is there enough room?
-            if (shelf.free > (item.end - item.start)) {
-                // there is room, but can it fit in available slots?
+        for (const shelf of shelves) {
+            if (shelf.free >= (item.end - item.start)) {
                 let canFit = true;
-                $.each(shelf.elements, function(y, element) {
+
+                for (const element of shelf.elements) {
                     if (((item.start - spacing <= element.start) && (item.end + spacing >= element.start)) ||
                         ((item.start - spacing >= element.start) && (item.start - spacing <= element.end))) {
                         canFit = false;
-                        // break out of loop
-                        return false;
+                        break;
                     }
-                });
+                }
 
                 if (canFit) {
                     shelf.elements.push(item);
                     shelf.free -= (item.end - item.start);
                     shelf.used += (item.end - item.start);
-                    shelved = true;
-                }
-
-                if (shelved) {
-                    // break out of loop
-                    return false;
+                    isItemShelved = true;
+                    break; // Item has been shelved, move to the next item
                 }
             }
-
-        });
-        if (!shelved) {
-            let shelf = createShelf(width);
-            shelf.elements.push(item);
-            shelf.free -= (item.end - item.start);
-            shelf.used += (item.end - item.start);
-            shelves.push(shelf);
         }
-    });
 
+        // Create a new shelf if the item wasn't shelved
+        if (!isItemShelved) {
+            const newShelf = createShelf(width);
+            newShelf.elements.push(item);
+            newShelf.free -= (item.end - item.start);
+            newShelf.used += (item.end - item.start);
+            shelves.push(newShelf);
+        }
+    }
 
     return shelves;
 }
 
 
-///////////////////
-
-
-
-
+/**
+ * Calculates the tick increment for a given range and count.
+ * This function determines the appropriate step size between ticks on a scale.
+ * @param {number} start - The start of the range.
+ * @param {number} stop - The end of the range.
+ * @param {number} count - The desired number of ticks.
+ * @return {number} The calculated increment value between ticks.
+ */
 function calculateTickIncrement(start, stop, count) {
-var e10 = Math.sqrt(50),
-    e5 = Math.sqrt(10),
-    e2 = Math.sqrt(2);
-  var step = (stop - start) / Math.max(0, count),
-      power = Math.floor(Math.log(step) / Math.LN10),
-      error = step / Math.pow(10, power);
-  return power >= 0
-      ? (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1) * Math.pow(10, power)
-      : -Math.pow(10, -power) / (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1);
+    const sqrt50 = Math.sqrt(50),
+        sqrt10 = Math.sqrt(10),
+        sqrt2 = Math.sqrt(2);
+
+    let step = (stop - start) / Math.max(0, count);
+    let power = Math.floor(Math.log(step) / Math.LN10);
+    let error = step / Math.pow(10, power);
+
+    let factor;
+    if (error >= sqrt50) {
+        factor = 10;
+    } else if (error >= sqrt10) {
+        factor = 5;
+    } else if (error >= sqrt2) {
+        factor = 2;
+    } else {
+        factor = 1;
+    }
+
+    if (power >= 0) {
+        return factor * Math.pow(10, power);
+    } else {
+        return -Math.pow(10, -power) / factor;
+    }
 }
 
+/**
+ * Calculates an array of tick positions on a scale from start to stop with a specified count.
+ * @param {number} start - The starting value of the scale.
+ * @param {number} stop - The ending value of the scale.
+ * @param {number} count - The desired number of ticks.
+ * @return {Array<number>} An array of tick values.
+ */
 function calculateTicks(start, stop, count) {
-  var reverse,
-      i = -1,
-      n,
-      ticks,
-      step;
+    let reverse = false,
+        step,
+        n,
+        ticks;
 
-  stop = +stop, start = +start, count = +count;
-  if (start === stop && count > 0) return [start];
-  if (reverse = stop < start) n = start, start = stop, stop = n;
-  if ((step = calculateTickIncrement(start, stop, count)) === 0 || !isFinite(step)) return [];
+    start = +start;
+    stop = +stop;
+    count = +count;
 
-  if (step > 0) {
-    let r0 = Math.round(start / step), r1 = Math.round(stop / step);
-    if (r0 * step < start) ++r0;
-    if (r1 * step > stop) --r1;
-    ticks = new Array(n = r1 - r0 + 1);
-    while (++i < n) ticks[i] = (r0 + i) * step;
-  } else {
-    step = -step;
-    let r0 = Math.round(start * step), r1 = Math.round(stop * step);
-    if (r0 / step < start) ++r0;
-    if (r1 / step > stop) --r1;
-    ticks = new Array(n = r1 - r0 + 1);
-    while (++i < n) ticks[i] = (r0 + i) / step;
-  }
+    // Return a single tick if start equals stop and count is positive
+    if (start === stop && count > 0) return [start];
 
-  if (reverse) ticks.reverse();
-
-  return ticks;
-}
-
-
-/////////
-const BASES_LIST = ['A','C','G','T'];
-const BASES_DICT = {'A': '0', 'C': '1', 'G': '2', 'T': '3'};
-const CC = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-
-function numberToBase(n, b) {
-    if (n === 0)
-        return [0]
-    let digits = [];
-    while (n) {
-        digits.push(Math.round(n % b))
-        n = Math.floor(n / b)
-    }
-    return digits.reverse().join('')
-}
-
-function sdpn_to_sdpN(sdpn, fill=-1) {
-    return numberToBase(sdpn, 4).padStart(8, '0');
-}
-function sdpN_to_sdpn(sdpN) {
-    return parseInt(""+sdpN, 4)
-}
-function sdpn_to_sdpB(sdpn) {
-    let spdN = sdpn_to_sdpN(sdpn);
-    let B = [];
-    for (let x = 0; x < spdN.length; x++) {
-        B.push(BASES_LIST[parseInt(spdN[x])]);
-    }
-    return B;
-}
-function sdpn_to_sdpD(sdpn, sort=null) {
-    let l = {};
-    let sdpB = sdpn_to_sdpB(sdpn);
-
-    for (let x = 0; x < sdpB.length; x++) {
-        if (sdpB[x] in l) {
-            l[sdpB[x]] = l[sdpB[x]] + CC[x];
-        } else {
-            l[sdpB[x]] = CC[x];
-        }
+    // Handle reverse ranges where stop is less than start
+    if (stop < start) {
+        reverse = true;
+        [start, stop] = [stop, start];
     }
 
-    let n = [];
+    step = calculateTickIncrement(start, stop, count);
 
-    if (sort != null) {
-        for (let b in sort) {
-            if (sort[b] in l) {
-                n.push(l[sort[b]]);
-            }
+    // Return empty array if step is 0 or not finite
+    if (step === 0 || !isFinite(step)) return [];
+
+    if (step > 0) {
+        let r0 = Math.round(start / step),
+            r1 = Math.round(stop / step);
+        if (r0 * step < start) ++r0;
+        if (r1 * step > stop) --r1;
+        ticks = new Array(n = r1 - r0 + 1);
+        for (let i = 0; i < n; i++) {
+            ticks[i] = (r0 + i) * step;
         }
     } else {
-        let temp = [];
-        for (const [key, value] of Object.entries(l)) {
-            temp.push({'base': key, 'num': value.length});
+        step = -step;
+        let r0 = Math.round(start * step),
+            r1 = Math.round(stop * step);
+        if (r0 / step < start) ++r0;
+        if (r1 / step > stop) --r1;
+        ticks = new Array(n = r1 - r0 + 1);
+        for (let i = 0; i < n; i++) {
+            ticks[i] = (r0 + i) / step;
         }
-        temp = temp.sort(function(a, b) {
-            return (a.num > b.num) ? 1 : -1;
-
-        }).reverse();
-
-        for (let x = 0; x < temp.length; x++) {
-            n.push(l[temp[x].base]);
-        }
-
     }
 
-    return n.join(':');
+    // Reverse the ticks array if the original range was in reverse
+    if (reverse) {
+        ticks.reverse();
+    }
+
+    return ticks;
 }
+
+/////////
+// Constants for base representations
+const BASES_LIST = ['A', 'C', 'G', 'T'];
+const CC = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+/**
+ * Converts a number to a specified base.
+ * @param {number} n - The number to convert.
+ * @param {number} b - The base for conversion.
+ * @return {string} - The number in the new base, as a string.
+ */
+function numberToBase(n, b) {
+    if (n === 0) return '0';
+    let digits = [];
+    while (n > 0) {
+        digits.push(n % b);
+        n = Math.floor(n / b);
+    }
+    return digits.reverse().join('');
+}
+
+/**
+ * Converts an SDP number to an 8-character SDP base-4 representation.
+ * @param {number} sdpn - The SDP number to convert.
+ * @param {number} fill - The fill length (default is -1, not used here).
+ * @return {string} - The SDP in base-4, padded to 8 characters.
+ */
+function sdpn_to_sdpN(sdpn) {
+    return numberToBase(sdpn, 4).padStart(8, '0');
+}
+
+/**
+ * Converts an SDP base-4 string back to its numerical representation.
+ * @param {string} sdpN - The SDP string in base-4.
+ * @return {number} - The numeric representation of the SDP.
+ */
+function sdpN_to_sdpn(sdpN) {
+    return parseInt(sdpN, 4);
+}
+
+/**
+ * Converts an SDP number to a sequence of DNA bases.
+ * @param {number} sdpn - The SDP number to convert.
+ * @return {string[]} - An array of DNA bases corresponding to the SDP number.
+ */
+function sdpn_to_sdpB(sdpn) {
+    const spdN = sdpn_to_sdpN(sdpn);
+    return spdN.split('').map(digit => BASES_LIST[parseInt(digit)]);
+}
+
+/**
+ * Converts an SDP number to a formatted string of DNA bases with associated indices.
+ * @param {number} sdpn - The SDP number to convert.
+ * @param {string[]} sort - Optional sorting array of bases.
+ * @return {string} - A colon-separated string of DNA bases and their indices.
+ */
+function sdpn_to_sdpD(sdpn, sort = null) {
+    const sdpB = sdpn_to_sdpB(sdpn);
+    let l = {};
+
+    sdpB.forEach((base, index) => {
+        l[base] = l[base] ? l[base] + CC[index] : CC[index];
+    });
+
+    if (sort !== null) {
+        return sort.map(base => l[base] || '').filter(v => v).join(':');
+    } else {
+        const sortedBases = Object.entries(l)
+            .sort((a, b) => b[1].length - a[1].length)
+            .map(entry => entry[1]);
+
+        return sortedBases.join(':');
+    }
+}
+
+
+
+/**
+ * Downloads content as a file directly from the browser.
+ * @param {string} content - The content to be downloaded.
+ * @param {string} fileName - The filename for the downloaded file.
+ * @param {string} mimeType - The MIME type of the file, defaults to 'application/octet-stream'.
+ */
+function downloadCSV(content, fileName, mimeType = 'application/octet-stream') {
+    const blob = new Blob([content], { type: mimeType });
+
+    // Check for MS IE specific blob save method
+    if (navigator.msSaveBlob) {
+        navigator.msSaveBlob(blob, fileName);
+    } else {
+        const a = document.createElement('a');
+        if ('download' in a) {
+            // HTML5 download attribute is supported
+            a.href = URL.createObjectURL(blob);
+            a.setAttribute('download', fileName);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            // Fallback for browsers without support for download attribute
+            location.href = `data:${mimeType},${encodeURIComponent(content)}`;
+        }
+    }
+}
+/**
+ * Generates a random integer between the specified inclusive minimum and maximum.
+ * @param {number} min - The minimum integer value in the range.
+ * @param {number} max - The maximum integer value in the range.
+ * @return {number} A random integer between min and max, inclusive.
+ */
+function randomInterval(min, max) {
+    return Math.floor(Math.random() * (max - min + 1) + min);
+};
