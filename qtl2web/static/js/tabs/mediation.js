@@ -1,30 +1,46 @@
+/**
+ * Exports mediation data to a CSV file based on the dataset type.
+ *
+ * @param {string} id - The unique identifier associated with the export.
+ * @param {Array} data - The array of data to be exported.
+ */
 function exportMediationData(id, data) {
-    let csvContent = `"gene_id","symbol","chromosome","position","lod"\n`;
+    let headers = `"gene_id","symbol","chromosome","position","lod"`;
+    let dataType = global.currentDataset.datatype;
 
-    if (global.currentDataset.datatype === 'protein') {
-        csvContent = '"protein_id",' + csvContent;
-    } else if (global.currentDataset.datatype === 'phos') {
-        csvContent = '"phos_id","protein_id",' + csvContent;
+    // Adjust the header based on the datatype
+    if (dataType === 'protein') {
+        headers = '"protein_id",' + headers;
+    } else if (dataType === 'phos') {
+        headers = '"phos_id","protein_id",' + headers;
     }
 
-    $.each(data, function (k, v) {
-        let line = `"${v.gene_id}","${v.symbol}","${v.chrom}",${v.position},${v.LOD}`;
+    // Initialize CSV content with the adjusted headers
+    let csvContent = `${headers}\n`;
 
-        if (global.currentDataset.datatype === 'protein') {
-            line = `"${v.protein_id}",` + line;
-        } else if (global.currentDataset.datatype === 'phos') {
-            line = `"${v.phos_id}","${v.protein_id}",` + line;
-        }
+    // Generate the CSV content for each data entry
+    data.forEach(item => {
+        let row = [
+            dataType === 'phos' ? item.phos_id : undefined,
+            dataType !== 'gene' ? item.protein_id : undefined,
+            item.gene_id,
+            item.symbol,
+            item.chrom,
+            item.position,
+            item.LOD
+        ].filter(value => value !== undefined).join('","');
 
-        csvContent += `${line}\n`;
+        csvContent += `"${row}"\n`;
     });
 
     downloadCSV(csvContent, `${id}_MEDIATION.csv`, 'text/csv;encoding:utf-8');
 }
 
 /**
- * Plot mediation data
- * @param {Object} mediationData - mediation data
+ * Plot mediation data by preparing the visualization elements and configuring interaction.
+ *
+ * @param {Object} mediationData - Mediation data to be visualized.
+ * @param {string} dsMediateAgainst - Dataset against which mediation is performed.
  */
 function plotMediation(mediationData, dsMediateAgainst) {
     logDebug('mediation');
@@ -304,8 +320,10 @@ function plotMediation(mediationData, dsMediateAgainst) {
 }
 
 /**
- * Start downloading mediation data.
+ * Initiates the process to generate a mediation plot based on provided identifiers.
  *
+ * @param {string} id - The unique identifier for the mediation process.
+ * @param {string} markerID - The marker identifier to mediate against.
  */
 function generateMediationPlot(id, markerID) {
     let mediateAgainst = $('#dsMediateAgainstID').val();
@@ -318,101 +336,108 @@ function generateMediationPlot(id, markerID) {
         }]
     };
 
-    startTask();
-
-    // reset the chart and clear it
-    $('#plotMediation').html('');
+    startTask(); // Start the task and show processing dialog.
+    $('#plotMediation').empty(); // Clear the mediation plot area.
 
     $.ajax({
         type: 'POST',
         url: submitURL,
         contentType: 'application/json',
         data: JSON.stringify(submitData),
-        retries: 3,
-        retryInterval: 1000,
-        success: function (data, status, request) {
-            logInfo('Mediation');
-            logDebug('data = ', data);
-            updateMediationData(data.group_id, mediateAgainst);
+        success: function (data) {
+            logInfo('Mediation data submitted successfully.');
+            logDebug('Response data:', data);
+            updateMediationData(data.group_id, mediateAgainst); // Update the mediation data based on the group ID.
         },
         error: function (jqXHR, textStatus, errorThrown) {
-            showErrorMessage(errorThrown, textStatus);
+            logError('Failed to submit mediation data:', textStatus, errorThrown);
+            showErrorMessage(`Error during mediation submission: ${errorThrown}`, textStatus); // Show detailed error message.
         }
     });
 }
 
 /**
- * Update the status of the downloading effect data.
+ * Updates the status of the downloading effect data for a specific task group.
  *
- * @param {string} groupID - the group identifier of the task
+ * @param {string} groupID - The identifier of the task group.
+ * @param {string} dsMediateAgainst - Dataset to be used in mediation.
  */
 function updateMediationData(groupID, dsMediateAgainst) {
-    // send GET request to status URL
-    logDebug('updateMediationData{} ', groupID);
+    logDebug('updateMediationData called for', groupID);
 
-    if (global.runningTask) {
-        let statusURL = statusBaseURL + groupID;
-        $.ajax({
-            type: 'GET',
-            url: statusURL,
-            retries: 3,
-            retryInterval: 1000,
-            success: function (data, status, request) {
-                logDebug('mediation data = ', data);
-
-                if (data.status === 'DONE') {
-                    if ('error' in data) {
-                        // MAJOR ERROR
-                        let message = `Unfortunately, there was a problem contacting the server.  Please try again.`;
-                        stopTask();
-                        showErrorMessage(message, null);
-                    } else if (data.number_tasks_errors !== 0) {
-                        let message = `Unfortunately, we encountered an error.  Please try again.`;
-                        let errorMessages = '';
-                        $.each(data.response_data, function (key, value) {
-                            if ('error' in value) {
-                                errorMessages += (`<strong>${key}:</strong> ${value.error}<br>`);
-                            }
-                        });
-
-                        stopTask();
-                        showErrorMessage(message, errorMessages);
-                    } else if (data.number_tasks_errors === 0) {
-                        // check to make sure the status codes are good
-                        let errorMessages = '';
-                        $.each(data.response_data, function (key, value) {
-                            if (value.status_code !== 200) {
-                                errorMessages += (`<strong>${key}:</strong> ${value.response.error}<br>`);
-                            }
-                        });
-
-                        if (errorMessages !== '') {
-                            let message = `Unfortunately, there was a problem performing the Mediation Analysis.`;
-                            stopTask();
-                            showErrorMessage(message, errorMessages);
-                        } else {
-                            // show result, there will be 1 datasets to get
-                            logInfo('mediation');
-                            plotMediation(data.response_data.mediate.response.result, dsMediateAgainst);
-                            stopTask();
-                        }
-                    }
-                } else {
-                    // rerun in 1 seconds
-                    logDebug('Mediation not done, keep checking...');
-                    setTimeout(function () {
-                        updateMediationData(groupID, dsMediateAgainst);
-                    }, 1000);  // TODO: change to 1000 (1 second)
-                }
-            }
-        });
-    } else {
-        // TODO: cleanup
+    if (!global.runningTask) {
         logDebug('canceling');
-        let cancelURL = `${cancelBaseURL}${groupID}`;
-        $.getJSON(cancelURL, function (data) {
-            logDebug(data);
-            $('#plotMediation').html('');
+        $.getJSON(`${cancelBaseURL}${groupID}`, function (data) {
+            logDebug('Cancellation data:', data);
+            $('#plotMediation').empty();
         });
+        return;
     }
+
+    let statusURL = `${statusBaseURL}${groupID}`;
+    $.ajax({
+        type: 'GET',
+        url: statusURL,
+        retries: 3,
+        retryInterval: 1000,
+        success: function (data) {
+            logDebug('Received mediation data:', data);
+            handleTaskResponse(data, function () {
+                logInfo('Mediation complete.');
+                plotMediation(data.response_data.mediate.response.result, dsMediateAgainst);
+                stopTask();
+            }, function () {
+                setTimeout(() => updateMediationData(groupID, dsMediateAgainst), 1000);
+            });
+        }
+    });
+}
+
+/**
+ * Asynchronously generates an HTML tooltip for display in a data visualization context.
+ * This function constructs a tooltip containing information about a data item such as protein,
+ * phosphorylation site, and gene identifiers.
+ *
+ * @param {Object} datum - The data item containing identifiers and values.
+ * @param {Object} mark - Unused parameter, may be removed if not required elsewhere.
+ * @param {Object} props - Unused parameter, may be removed if not required elsewhere.
+ * @returns {Promise<string>} A promise that resolves with the HTML content for the tooltip.
+ */
+async function mediationTooltipHandler(datum, mark, props) {
+    logDebug(datum); // Log the input data for debugging.
+
+    // Initialize variables for storing HTML parts of the tooltip.
+    let phosHTML = '';
+    let proteinHTML = '';
+
+    // Construct the phosphorylation ID section if available.
+    if (datum.phos_id) {
+        phosHTML = `
+            <strong>Phos ID</strong> ${datum.phos_id}
+            <br/>`;
+    }
+
+    // Construct the protein ID section if available.
+    if (datum.protein_id) {
+        proteinHTML = `
+            <strong>Protein ID</strong> ${datum.protein_id}
+            <br/>`;
+    }
+
+    // Construct and return the final HTML content for the tooltip.
+    return genomeSpyEmbed.html`
+        <div class="title">
+            <strong>${datum.LOD}</strong>
+        </div>
+        <p class="summary">
+            ${phosHTML}
+            ${proteinHTML}
+            <strong>Gene ID</strong> ${datum.gene_id}
+            <br/>
+            <strong>Symbol</strong> ${datum.symbol}
+            <br/>
+            <strong>Location</strong> ${datum.chrom}:${datum.position.toLocaleString()}
+            <br/>
+        </p>
+    `;
 }

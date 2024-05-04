@@ -848,6 +848,7 @@
     <script src="{{ url_for('static', filename='js/tabs/correlation.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tabs/profile_plot.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tabs/effect.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tabs/mediation.js') }}"></script>
 
 
 
@@ -2086,46 +2087,6 @@
             });
 
             return geneInfo;
-        }
-
-        
-
-        async function mediationTooltipHandler(datum, mark, props) {
-            logDebug(datum);
-            let protein = '';
-            let phos = '';
-
-            if (('phos_id' in datum) &&
-                (datum['phos_id'] != null) &&
-                (datum['phos_id'] !== '')) {
-                phos = genomeSpyEmbed.html`
-                    <strong>Phos ID</strong> ${datum.phos_id}
-                    <br/>`;
-            }
-
-            if (('protein_id' in datum) &&
-                (datum['protein_id'] != null) &&
-                (datum['protein_id'] !== '')) {
-                protein = genomeSpyEmbed.html`
-                    <strong>Protein ID</strong> ${datum.protein_id}
-                    <br/>`;
-            }
-
-            return genomeSpyEmbed.html`
-                <div class="title">
-                    <strong>${datum.LOD}</strong>
-                </div>
-                <p class="summary">
-                    ${phos}
-                    ${protein}
-                    <strong>Gene ID</strong> ${datum.gene_id}
-                    <br/>
-                    <strong>Symbol</strong> ${datum.symbol}
-                    <br/>
-                    <strong>Location</strong> ${datum.chrom}:${datum.position.toLocaleString()}
-                    <br/>
-                </p>
-            `;
         }
 
         async function lodPeakGeneTooltipHandler(datum, mark, props) {
