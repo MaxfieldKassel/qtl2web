@@ -808,9 +808,15 @@
         const lodPeaksBaseURL = '{{ url_for('api.api_get', url=config.API_R_BASE + '/lodpeaks', _external=False) }}';
         const envInfoURL = '{{ url_for('api.api_get', url=config.API_R_BASE + '/envinfo', _external=False) }}';
         const dataSetsURL = '{{ url_for('api.api_get', url=config.API_R_BASE + '/datasets', _external=False) }}';
-        
+        const submitURL = '{{ url_for('api.api_submit', _external=False) }}';
+        const statusURL = '{{ url_for('api.api_status', group_id='', _external=False) }}';
+        const pageErrorURL = '{{ url_for('page.error') }}';
+        const cancelURL = '{{ url_for('api.api_cancel', group_id='', _external=False) }}';
+        const rBaseURL = '{{ config.API_R_BASE }}';
+
         const global = new Global();
         global.CHROMOSOMES = {{ config.CHROMOSOMES|safe }};
+        const requestedDataSetID = '{{ datasetid }}';
     </script>  
 
     <script src="{{ url_for('static', filename='js/utilities.js') }}"></script>
@@ -818,6 +824,9 @@
     <script src="{{ url_for('static', filename='js/high_chart.js') }}"></script>
     <script src="{{ url_for('static', filename='js/jquery.extensions.js') }}"></script>
     <script src="{{ url_for('static', filename='js/download.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tasks.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tabs/correlation.js') }}"></script>
+
 
     <script>
 
@@ -879,7 +888,7 @@
                     if (error) {
                         logError(error);
                         if (!debugMode) { // redirect to error page if not in debug mode
-                            window.location = '{{ url_for('page.error') }}';
+                            window.location = pageErrorURL;
                         }
                         return;
                     }
@@ -887,7 +896,7 @@
                     if ((data.result === undefined) || (data.result.datasets.length === 0)) {
                         logError('data=', data);
                         if (!debugMode) { // redirect to error page if not in debug mode
-                            window.location = '{{ url_for('page.error') }}';
+                            window.location = pageErrorURL;
                         }
                         return;
                     }
@@ -1000,7 +1009,7 @@
 
                     datasets_dropdown = sortObj(datasets_dropdown);
 
-                    let requestedDataSetID = '{{ datasetid }}';
+                    
 
                     if (global.datasetExists(requestedDataSetID)) {
                         global.setDatasetID(requestedDataSetID);
@@ -2026,38 +2035,7 @@
             plotLODPeaks(global.currentDataset.lodpeaks[covar], maxLOD);
         }
 
-        /**
-         *
-         */
-        function startTask() {
-            global.runningTask = true;
-            Swal.fire({
-                allowEnterKey: false,
-                allowEscapeKey: false,
-                allowOutsideClick: false,
-                buttonsStyling: false,
-                //cancelButtonClass: 'btn btn-danger',
-                html: $('#ap').html(),
-                showConfirmButton: false,
-                showCancelButton: false,
-                showCloseButton: true,
-                title: 'Processing...',
-                width: '20rem'
-            }).then((result) => {
-                logDebug('then called');
-                // result.dismiss can be 'cancel', 'overlay',
-                // 'close', and 'timer'
-                if (result.dismiss === 'close') {
-                    stopTask();
-                }
-            });
-        }
-
-        function stopTask() {
-            global.runningTask = false;
-            Swal.close();
-        }
-
+      
         function exportSNPAssocData(id, snps, genes) {
             // TODO: export genes?
             let csvContent = `"id","chr","position","alleles","csq","lod"\n`;
@@ -2087,30 +2065,7 @@
             return geneInfo;
         }
 
-        async function correlationTooltipHandler(datum, mark, props) {
-            const itemTemplates = [];
-
-            $.each(datum.map, function(k, v) {
-                itemTemplates.push(genomeSpyEmbed.html`
-                    <strong>${v}</strong> ${datum[k]}<br/>
-                `);
-            });
-
-            if (datum.imputed) {
-                itemTemplates.push(genomeSpyEmbed.html`
-                    <i>Imputed</i>
-                `);
-            }
-
-            return genomeSpyEmbed.html`
-                <div class="title">
-                    <strong>${datum.sample_id}</strong>
-                </div>
-                <p class="summary">
-                    ${itemTemplates}
-                </p>
-            `;
-        }
+        
 
         async function mediationTooltipHandler(datum, mark, props) {
             logDebug(datum);
@@ -2288,10 +2243,7 @@
             }
         }
 
-        async function nullHandler(datum, mark, props) {
-            //logDebug(datum, mark, props);
-            return null;//genomeSpyEmbed.html``
-        }
+        
 
         // TODO: Replace with an LRU-cache
         const symbolSummaryCache = new Map();
@@ -3036,7 +2988,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: '{{ url_for('api.api_submit', _external=False) }}',
+                url: submitURL,
                 contentType: 'application/json',
                 data: JSON.stringify(submitData),
                 retries: 3,
@@ -3061,7 +3013,7 @@
             logDebug('updateSNPAssocData: ', groupID);
 
             if (global.runningTask) {
-                let statusURL = '{{ url_for('api.api_status', group_id='', _external=False) }}' + groupID;
+                let statusURL = statusURL + groupID;
                 $.ajax({
                     type: 'GET',
                     url: statusURL,
@@ -3789,7 +3741,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: '{{ url_for('api.api_submit', _external=False) }}',
+                url: submitURL,
                 contentType: 'application/json',
                 data: JSON.stringify(submitData),
                 retries: 3,
@@ -3815,7 +3767,7 @@
             logDebug('updateMediationData{} ', groupID);
 
             if (global.runningTask) {
-                let statusURL = '{{ url_for('api.api_status', group_id='', _external=False) }}' + groupID;
+                let statusURL = statusURL + groupID;
                 $.ajax({
                     type: 'GET',
                     url: statusURL,
@@ -3916,7 +3868,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: '{{ url_for('api.api_submit', _external=False) }}',
+                url: submitURL,
                 contentType: 'application/json',
                 data: JSON.stringify(submitData),
                 retries: 3,
@@ -3940,7 +3892,7 @@
             logDebug('updateEffectData() ', groupID);
 
             if (global.runningTask) {
-                let statusURL = '{{ url_for('api.api_status', group_id='', _external=False) }}' + groupID;
+                let statusURL = statusURL + groupID;
                 $.ajax({
                     type: 'GET',
                     url: statusURL,
@@ -4016,7 +3968,7 @@
             logDebug(groupID);
 
             if (global.runningTask) {
-                let statusURL = '{{ url_for('api.api_status', group_id='', _external=False) }}' + groupID;
+                let statusURL = statusURL + groupID;
                 $.ajax({
                     type: 'GET',
                     url: statusURL,
@@ -4122,7 +4074,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: '{{ url_for('api.api_submit', _external=False) }}',
+                url: submitURL,
                 contentType: 'application/json',
                 data: JSON.stringify(submitData),
                 retries: 3,
@@ -5580,528 +5532,8 @@
             });
         }
 
-        function formatStrToNum(val, decimals) {
-            return Number.parseFloat(val).toFixed(decimals);
-        }
-
-
-        function displayCorrelation(correlationData) {
-            $('#correlationDataTable').html('');
-
-            {% if debug %}
-            console.time('correlationTable');
-            {% endif %}
-
-            logDebug('displayCorrelation()');
-            logDebug('correlationData=', correlationData);
-            global.correlationData = correlationData;
-
-            logDebug('global.currentCorrelationDataset.datatype=', global.currentCorrelationDataset.datatype);
-
-            let htmlBody = '<table id="corTable" class="table table-striped table-bordered table-sm table-sm-text">';
-
-            if (global.currentCorrelationDataset.datatype === 'mrna') {
-                htmlBody += '<thead><th>Value</th><th>Symbol</th><th>ID</th></thead>';
-                $.each(correlationData.correlations, function(idx, value) {
-                    if (idx < 1000) {
-                        htmlBody += '<tr><td data-order="' + Math.abs(formatStrToNum(value.cor, 4)) + '">' + formatStrToNum(value.cor, 4) + `</td><td>${value.symbol}</td><td><a href="#" dSymbol="${value.symbol}" dID="${value.id}">${value.id}</a></td></tr>`;
-                    }
-                });
-            } else if (global.currentCorrelationDataset.datatype === 'protein') {
-                htmlBody += '<thead><th>Value</th><th>Symbol</th><th>ID</th></thead>';
-                $.each(correlationData.correlations, function(idx, value) {
-                    if (idx < 1000) {
-                        htmlBody += '<tr><td data-order="' + Math.abs(formatStrToNum(value.cor, 4)) + '">' + formatStrToNum(value.cor, 4) + `</td><td>${value.symbol}</td><td><a href="#" dSymbol="${value.symbol}" dID="${value.id}">${value.id}</a></td</tr>`;
-                    }
-                });
-            } else if (global.currentCorrelationDataset.datatype === 'phos') {
-                htmlBody += '<thead><th>Value</th><th>Gene Symbol</th><th>ID</th></thead>';
-                $.each(correlationData.correlations, function(idx, value) {
-                    if (idx < 1000) {
-                        let ph_id = value.id.split('_')[1];
-                        htmlBody += '<tr><td data-order="' + Math.abs(formatStrToNum(value.cor, 4)) + '">' + formatStrToNum(value.cor, 4) + `</td><td>${value.symbol}</td><td><a href="#" dSymbol="${value.symbol}" dID="${value.id}">${ph_id}</a></td</tr>`;
-                    }
-                });
-            } else if (global.currentCorrelationDataset.datatype === 'pheno') {
-                htmlBody += '<thead><th>Value</th><th>ID</th></thead>';
-                $.each(correlationData.correlations, function(idx, value) {
-                    if (idx < 1000) {
-                        htmlBody += '<tr><td data-order="' + Math.abs(formatStrToNum(value.cor, 4)) + '">' + formatStrToNum(value.cor, 4) + `</td><td><a href="#" dSymbol="" dID="${value.id}">${value.id}</a></td></tr>`;
-                    }
-                });
-            } else {
-                // TODO: major error
-                logError('MAJOR ERROR');
-            }
-
-            htmlBody += '</table>';
-            $('#correlationDataTable').html(htmlBody);
-
-            $('#corTable').DataTable({
-                "info":     false,
-                "language": {
-                    "search": "Filter"
-                },
-                "scrollY":        "200px",
-                "scrollCollapse": true,
-                "order": [[ 0, "desc" ]],
-                "paging":         false,
-                "columnDefs": [{
-                    "targets": 0,
-                    "className": "dt-body-right"
-                }]
-            });
-
-            $('#correlationImputation').html('');
-
-            /*
-            if ((correlationData.imputed_samples != null) && (correlationData.imputed_samples.length > 0)){
-                $('#correlationImputation').html('<span style="color:red">* Some missing values were imputed to calculate the correlations.</span>');
-            }
-            */
-
-            $('#corTable a').click(function(evt) {
-                evt.preventDefault();
-                let that = $(this);
-                let cid = null;
-
-                if (global.currentDataset.datatype === 'mrna') {
-                    cid = global.geneID;
-                } else if (global.currentDataset.datatype === 'protein') {
-                    cid = global.proteinID;
-                } else if (global.currentDataset.datatype === 'phos') {
-                    cid = global.phosID;
-                } else if (global.currentDataset.datatype === 'pheno') {
-                    cid = global.phenotypeID;
-                }
-
-                global.currentCorrelateID =  that.attr('dID');
-
-                let interactiveCovariate = $('#interactiveCovarCorrelation').find(':selected').val();
-
-                if (interactiveCovariate === 'none') {
-                    interactiveCovariate = null;
-                }
-
-                generateCorrelationPlot(global.datasetID, cid, $('#correlationDatasetSelect').val(), that.attr('dID'), that.attr('dSymbol'), interactiveCovariate);
-                return false;
-            });
-
-            {% if debug %}
-            console.timeEnd('correlationTable');
-            {% endif %}
-
-        }
-
-        function exportCorrelationPlotData(id, idCorrelate, data) {
-            let csvContent = `"sample_id","${id}","${idCorrelate}"\n`;
-
-            $.each(data, function(k, v) {
-                csvContent += `"${v['sample_id']}",${v.x},${v.y}\n`;
-            });
-
-            downloadCSV(csvContent, `${id}_${idCorrelate}_CORRELATION.csv`, 'text/csv;encoding:utf-8');
-        }
-
-        function plotCorrelationChart() {
-            let data = global.correlationChartData;
-            logDebug('plotCorrelationChart, data=', data);
-
-            let categorySeries = $('#divFactorSeriesCorrelation').find(':selected').val();
-            logDebug('categorySeries=', categorySeries);
-
-            let plotTitle = '';
-            let xAxis = '';
-            let yAxis = global.currentCorrelateID;
-            let currentID = '';
-
-            if (global.currentDataset.datatype === 'mrna') {
-                plotTitle = global.geneID;
-                currentID = global.geneID;
-                xAxis = plotTitle;
-            } else if (global.currentDataset.datatype === 'protein') {
-                plotTitle = global.proteinID;
-                currentID = global.proteinID;
-                xAxis = plotTitle;
-            } else if (global.currentDataset.datatype === 'phos') {
-                plotTitle = global.phosID;
-                currentID = global.phosID;
-                xAxis = plotTitle;
-            } else if (global.currentDataset.datatype === 'pheno') {
-                plotTitle = global.phenotypeID;
-                currentID = global.phenotypeID;
-                xAxis = plotTitle;
-                if (global.phenotypeID !== global.currentDataset.phenotypes[global.phenotypeID]['short_name']) {
-                    plotTitle += (' (' + global.currentDataset.phenotypes[global.phenotypeID]['short_name'] + ')');
-                }
-            }
-
-            let seriesData = new Set();
-
-            if (Array.isArray(data.datatypes[categorySeries])) {
-                seriesData = new Set(data.datatypes[categorySeries]);
-            } else {
-                seriesData.add(data.datatypes[categorySeries]);
-            }
-
-            let minValue = Infinity;
-            let maxValue = -Infinity;
-
-            let cfMap = {};
-            $.each(global.currentDataset['covar_info'], function(idx, elem) {
-                cfMap[elem['sample_column']] = elem['display_name'];
-            });
-
-            let newData = [];
-
-            $.each(data.data, function(idx, element) {
-                if ((element.x !== undefined) && (element.y !== undefined)) {
-                    minValue = Math.min(minValue, element.x, element.y);
-                    maxValue = Math.max(maxValue, element.x, element.y);
-
-                    // make a copy of element
-                    let d = JSON.parse(JSON.stringify(element));
-                    d['map'] = cfMap;
-                    d['seriesValue'] = element[categorySeries];
-                    newData.push(d);
-                }
-            });
-
-            minValue = Math.floor(minValue);
-            maxValue = Math.ceil(maxValue);
-
-
-            let axisTicks = calculateTicks(minValue, maxValue, 5);
-
-            let axisLines = [];
-
-            $.each(axisTicks, function(k,v) {
-                axisLines.push({
-                    axisLOD: v
-                })
-            });
-
-            let colors = ['#7cb5ec', '#ed3215', '#8085e9', '#f7a35c', '#90ed7d',
-                '#e4d354', '#2b908f', '#f45b5b', '#91e8e1'];
-
-
-            let correlationColorDomain = Array.from(seriesData);
-            //let correlationColorRange = global.PLOT_COLORS.slice(0, correlationColorDomain.length);
-            let correlationColorRange = colors.slice(0, correlationColorDomain.length);
-            let revColors = [];
-
-            for (let x = correlationColorRange.length - 1; x >= 0; x--) {
-                revColors.push(correlationColorRange[x]);
-            }
-
-            logDebug('newData=', newData);
-            logDebug('minValue=', minValue);
-            logDebug('maxValue=', maxValue);
-            logDebug('correlationColorDomain=', correlationColorDomain);
-            logDebug('correlationColorRange=', correlationColorRange);
-            logDebug('revColors=', revColors);
-            logDebug('seriesData=', seriesData);
-            logDebug('cfMap=', cfMap);
-            logDebug('axisTicks=', axisTicks);
-
-
-            let yAxisTitle = data['id.correlate'];
-
-            /*
-            if (correlateSymbol !== '') {
-                yAxisTitle = correlateSymbol;
-            }
-            */
-
-            /*
-            let exporting = appendExportButton('Download CSV', function() {
-                exportCorrelationPlotData(data.id, data['id.correlate'], data.data);
-            });
-            exporting.filename = data.id + '_' + data['id.correlate'] + '_CORRELATION';
-            */
-
-            let trackCorrelation = {
-                "name": "correlation",
-                "layer": [
-                        {
-                            "title": "Xbound",
-                            "data": {
-                                "values": axisLines,
-                            },
-                            "mark": {
-                                "type": "rule",
-                                "tooltip": {
-                                    "handler": "nullHandler"
-                                },
-                            },
-                            "encoding": {
-                                "y": {
-                                    "field": "axisLOD",
-                                    "type": "quantitative",
-                                    "title": null
-                                },
-                                "color": {
-                                    "value": "#e5e5e5"
-                                }
-                            },
-                        },
-                        {
-                            "title": "Ybound",
-                            "data": {
-                                "values": axisLines,
-                            },
-                            "mark": {
-                                "type": "rule",
-                                "tooltip": {
-                                    "handler": "nullHandler"
-                                },
-                            },
-                            "encoding": {
-                                "x": {
-                                    "field": "axisLOD",
-                                    "type": "quantitative",
-                                    "title": null
-                                },
-                                "color": {
-                                    "value": "#e5e5e5"
-                                }
-                            },
-                        },
-                        {
-                        "data": {
-                            "values": newData
-                        },
-
-                        "transform": [
-                            { "type": "formula", "expr": "datum.imputed ? 'diamond' : 'point'", "as": "myShape" }
-                        ],
-
-                        "title": "Correlation",
-                        "mark": {
-                            "type": "point",
-                            "tooltip": {
-                                "handler": "correlationTooltipHandler"
-                            },
-                            "geometricZoomBound": 4,
-                            "inwardStroke": true,
-                            "stroke": "#333333",
-                            "strokeWidth": 0.7,
-                            "fillOpacity": 0.6,
-                            "strokeOpacity": 0.8
-                        },
-                        "encoding": {
-                            "shape": {
-                                "field": "myShape",
-                                "type":"nominal"
-                            },
-                            "x": {
-                                "title": xAxis,
-                                "field": "x",
-                                "type": "quantitative",
-                                "scale": {
-                                    "zoom": true,
-                                    "domain": [minValue, maxValue]
-                                },
-                                "axis": {
-                                    "values": axisTicks
-                                },
-                            },
-                            "y": {
-                                "title": yAxis,
-                                "field": "y",
-                                "type": "quantitative",
-                                "scale": {
-                                    "zoom": true,
-                                    "domain": [minValue, maxValue]
-                                },
-                                "axis": {
-                                    "values": axisTicks
-                                },
-                            },
-                            "color": {
-                                "type": "nominal",
-                                "field": "seriesValue",
-                                "scale": {
-                                    "domain": correlationColorDomain,
-                                    "range": revColors,
-                                }
-                            },
-                            "size": {
-                                "value": 150
-                            },
-                            "opacity": {
-                                "value": 1
-                            }
-                        }
-                    }
-                ]
-            };
-
-            // TODO: figure out legend
-            //let legend = calcLegend(correlationColorDomain, correlationColorRange, "correlationLegend");
-            let tracks = [trackCorrelation]; //, legend];
-            let handlers = {
-                nullHandler: nullHandler,
-                correlationTooltipHandler: correlationTooltipHandler
-            };
-
-            const spec = {
-                "vconcat": tracks
-            };
-
-            logDebug('SPEC=', spec);
-            $("#plotCorrelation").html('<div class="row"><div class="col" id="plotCorrelationMenu"></div></div><div class="row"><div class="col" id="plotCorrelationChart"></div></div>');
-            $('#plotCorrelationChart').width('400');
-            $('#plotCorrelationChart').height('400');
-
-            $('#plotCorrelationMenu').append(`<div class="col text-center font-weight-bold">${plotTitle}
-                <div class="dropdown dropleft float-right" id="correlationMenuDropdown">
-                  <a class="text-secondary" href="#" role="button" id="correlationDropdownMenuLink" data-toggle="dropdown" aria-expanded="false">
-                    <i class="fa-solid fa-bars"></i>
-                  </a>
-
-                  <div class="dropdown-menu" aria-labelledby="correlationDropdownMenuLink">
-                    <a class="dropdown-item" id="correlationDownloadPNG" style="font-size:11px !important">Download PNG image</a>
-                    <a class="dropdown-item" id="correlationDownloadCSV" style="font-size:11px !important">Download CSV</a>
-                  </div>
-                </div>
-            </div>`);
-
-            let n = currentID + '_CORRELATION';
-            $("#correlationDownloadPNG").click(function (event) {
-                downloadGenomeSpy('#plotCorrelationChart', `${n}.png`, '255,255,255');
-            });
-
-            $("#correlationDownloadCSV").click(function (event) {
-                exportCorrelationPlotData(currentID, global.currentCorrelateID, data.data);
-            });
-
-            global.chartCorrelation = genomeSpyEmbed.embed(
-                document.querySelector("#plotCorrelationChart"),
-                spec,
-                {
-                    tooltipHandlers: handlers
-                }
-            ).then(function(api) {
-                api.addEventListener("click", function(event) {
-                    if (event.datum != null) {
-                        let datum = event.datum;
-                        logDebug('correlation clicked on', datum);
-                    }
-                });
-            });
-        }
-
-        function updateCorrelationData(groupID, currentDataset, currentID, correlateDataset, correlateID, correlateSymbol) {
-            // send GET request to status URL
-            logDebug('updateCorrelationData');
-            logDebug(currentDataset, currentID, correlateDataset, correlateID, correlateSymbol);
-
-            if (global.runningTask) {
-                let statusURL = '{{ url_for('api.api_status', group_id='', _external=False) }}' + groupID;
-                $.ajax({
-                    type: 'GET',
-                    url: statusURL,
-                    retries: 3,
-                    retryInterval: 1000,
-                    success: function (data, status, request) {
-                        logDebug('DATA=======', data);
-                        if (data.status === 'DONE') {
-                            if ('error' in data) {
-                                // MAJOR ERROR
-                                let message = `Unfortunately, there was a problem contacting the server.  Please try again.`;
-                                stopTask();
-                                showErrorMessage(message, null);
-                            } else if (data.number_tasks_errors !== 0) {
-                                let message = `Unfortunately, we encountered an error.  Please try again.`;
-                                let errorMessages = '';
-                                $.each(data.response_data, function (key, value) {
-                                    if ('error' in value) {
-                                        errorMessages += (`<strong>${key}:</strong> ${value.error}<br>`);
-                                    }
-                                });
-
-                                stopTask();
-                                showErrorMessage(message, errorMessages);
-                            } else if (data.number_tasks_errors === 0) {
-                                // check to make sure the status codes are good
-                                let errorMessages = '';
-                                $.each(data.response_data, function (key, value) {
-                                    if (value.status_code !== 200) {
-                                        errorMessages += (`<strong>${key}:</strong> ${value.response.error}<br>`);
-                                    }
-                                });
-
-                                if (errorMessages !== '') {
-                                    let message = `Unfortunately, there was a problem calculating the Correlation Plot.`;
-                                    stopTask();
-                                    showErrorMessage(message, errorMessages);
-                                } else {
-                                    global.correlationChartData = data.response_data.correlationPlot.response.result;
-                                    plotCorrelationChart();
-                                    stopTask();
-                                }
-                            }
-                        } else {
-                            // rerun in 1 seconds
-                            logDebug('Not done, keep checking...');
-                            setTimeout(function () {
-                                updateCorrelationData(groupID, currentDataset, currentID, correlateDataset, correlateID, correlateSymbol);
-                            }, 1000);  // TODO: change to 1000 (1 second)
-                        }
-                    }
-                });
-            } else {
-                // TODO: cleanup
-                logDebug('canceling');
-                let cancelURL = `{{ url_for('api.api_cancel', group_id='', _external=False) }}${groupID}`;
-                $.getJSON(cancelURL, function (data) {
-                    logDebug(data);
-                    global.chartCorrelation = null;
-                    $('#correlationDataTable').html('');
-                    $('#plotCorrelation').html('');
-                    $('#correlationImputation');
-                });
-            }
-        }
-
-        function generateCorrelationPlot(currentDataset, currentID, correlateDataset, correlateID, correlateSymbol, interactiveCovariate) {
-            logDebug('Generating correlation plot:', currentDataset, currentID, correlateDataset, correlateID, correlateSymbol);
-            let urlCorrelationPlot = `{{ config.API_R_BASE }}/correlationplot?dataset=${currentDataset}&id=${currentID}&dataset_correlate=${correlateDataset}&id_correlate=${correlateID}`;
-
-            if ((interactiveCovariate !== undefined) &&
-                (interactiveCovariate !== null) &&
-                (interactiveCovariate !== 'none')) {
-                urlCorrelationPlot += `&intcovar=${interactiveCovariate}`;
-            }
-
-            let submitData = {
-                urls:[{
-                    url_id: 'correlationPlot',
-                    url: urlCorrelationPlot
-                }]
-            };
-
-            startTask();
-
-            // reset the chart and clear it
-            $('#plotCorrelation').html('');
-
-            $.ajax({
-                type: 'POST',
-                url: '{{ url_for('api.api_submit', _external=False) }}',
-                contentType: 'application/json',
-                data: JSON.stringify(submitData),
-                retries: 3,
-                retryInterval: 1000,
-                success: function(data, status, request) {
-                    updateCorrelationData(data.group_id, currentDataset, currentID, correlateDataset, correlateID, correlateSymbol);
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    showErrorMessage(errorThrown, textStatus);
-                }
-            });
-        }
+    
+        
 
         function resetSecondaryPlots() {
             $('#plotMediation').html('');
@@ -6325,7 +5757,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: '{{ url_for('api.api_submit', _external=False) }}',
+                url: submitURL,
                 contentType: 'application/json',
                 data: JSON.stringify(submitData),
                 retries: 3,
@@ -6343,42 +5775,6 @@
                 error: function(jqXHR, textStatus, errorThrown) {
                     showErrorMessage(errorThrown, textStatus);
                 }
-            });
-        }
-
-        function showErrorMessage(message, details) {
-            let errorMessage = `<div class="row text-left"><div class="col"><span class="font-weight-bold text-danger">${message}</span></div></div>`;
-
-            if (details !== null) {
-                errorMessage += `<div class="row row-spacer"></div>
-                                 <div class="row text-left">
-                                     <div class="col">
-                                         <div id="errorDetailAccordion" data-children=".item">
-                                             <div class="item">
-                                                 <a class="text-danger" data-toggle="collapse" data-parent="#errorDetailAccordion" href="#errorDetailAccordion1" role="button" aria-expanded="true" aria-controls="errorDetailAccordion1">
-                                                     Details
-                                                 </a>
-                                                 <div id="errorDetailAccordion1" class="collapse" role="tabpanel">
-                                                     <p class="mb-3">
-                                                         ${details}
-                                                     </p>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                     </div>
-                                 </div>`;
-            }
-
-            Swal.fire({
-                  allowEnterKey: false,
-                  allowEscapeKey: false,
-                  allowOutsideClick: false,
-                  buttonsStyling: false,
-                  html: errorMessage,
-                  showCancelButton: false,
-                  showCloseButton: true,
-                  showConfirmButton: false,
-                  title: '<i class="fas fa-exclamation-circle"></i> Error!',
             });
         }
 
@@ -6613,7 +6009,7 @@
 
             $.ajax({
                 type: 'POST',
-                url: '{{ url_for('api.api_submit', _external=False) }}',
+                url: submitURL,
                 contentType: 'application/json',
                 data: JSON.stringify(submitData),
                 retries: 3,
@@ -6800,7 +6196,7 @@
 
                 $.ajax({
                     type: 'POST',
-                    url: '{{ url_for('api.api_submit', _external=False) }}',
+                    url: submitURL,
                     contentType: 'application/json',
                     data: JSON.stringify(submitData),
                     retries: 3,

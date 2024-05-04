@@ -489,3 +489,27 @@ function sortObj(obj) {
         return result;
     }, {});
 }
+
+/**
+ * Converts a string to a number with a specified number of decimal places.
+ * 
+ * @param {*} val - The value to convert to a number.
+ * @param {number} decimals - The number of decimal places to round to.
+ * @return {number} The value as a number with the specified number of decimal places.
+ */
+function formatStrToNum(val, decimals) {
+    return Number.parseFloat(val).toFixed(decimals);
+}
+
+/**
+ * Returns null. 
+ * 
+ * @param {*} datum 
+ * @param {*} mark 
+ * @param {*} props 
+ * @returns null
+ */
+async function nullHandler(datum, mark, props) {
+    //logDebug(datum, mark, props);
+    return null;
+}
