@@ -238,7 +238,7 @@ function updateCorrelationData(groupID, currentDataset, currentID, correlateData
     if (global.runningTask) {
         $.ajax({
             type: 'GET',
-            url: statusURL + groupID,
+            url: statusBaseURL + groupID,
             retries: 3,
             retryInterval: 1000,
             success: function (data) {

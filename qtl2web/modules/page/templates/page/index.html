@@ -804,19 +804,39 @@
 
     <script> 
         const debugMode = {{ debug|tojson }};
-        const chromosomeBaseURL = `{{ url_for('api.api_get', url='', _external=False) }}${window.location.protocol}//{{ api_url }}/api/chromosomes`;
+        const apiURL = '{{ api_url }}';
+        const chromosomeBaseURL = `{{ url_for('api.api_get', url='', _external=False) }}${window.location.protocol}//${apiURL}/api/chromosomes`;
         const lodPeaksBaseURL = '{{ url_for('api.api_get', url=config.API_R_BASE + '/lodpeaks', _external=False) }}';
         const envInfoURL = '{{ url_for('api.api_get', url=config.API_R_BASE + '/envinfo', _external=False) }}';
         const dataSetsURL = '{{ url_for('api.api_get', url=config.API_R_BASE + '/datasets', _external=False) }}';
         const submitURL = '{{ url_for('api.api_submit', _external=False) }}';
-        const statusURL = '{{ url_for('api.api_status', group_id='', _external=False) }}';
+        const statusBaseURL = '{{ url_for('api.api_status', group_id='', _external=False) }}';
         const pageErrorURL = '{{ url_for('page.error') }}';
-        const cancelURL = '{{ url_for('api.api_cancel', group_id='', _external=False) }}';
+        const cancelBaseURL = '{{ url_for('api.api_cancel', group_id='', _external=False) }}';
         const rBaseURL = '{{ config.API_R_BASE }}';
+        const downloadURL = '{{ url_for('page.dl') }}';
+
 
         const global = new Global();
         global.CHROMOSOMES = {{ config.CHROMOSOMES|safe }};
         const requestedDataSetID = '{{ datasetid }}';
+
+
+        const plotEffectStrains = {{ config.PLOT_EFFECT_STRAINS | tojson | safe }};
+        {% if config.PLOT_EFFECT_COVARIATES is defined %}
+        const plotLODLines = {{ config.PLOT_LOD_LINES | tojson | safe }};
+        {% else %}
+        const plotLODLines = null;
+        {% endif %}
+        // Fixes issue where R num cores is not defined
+        {% if config.API_R_NUM_CORES is defined %}
+        const rNumCores = {{ config.API_R_NUM_CORES }};
+        {% else %}
+        const rNumCores = null;
+        {% endif %}
+        const navDataset = `{{ config.NAV_DATASET|safe }}`;
+        const mainTitle = `{{ config.MAIN_TITLE|safe }}`;
+        
     </script>  
 
     <script src="{{ url_for('static', filename='js/utilities.js') }}"></script>
@@ -872,7 +892,7 @@
             evt.preventDefault();
             let that = $(this);
             let f = that.attr('fileName');
-            window.location = "{{ url_for('page.dl') }}" + `?fileName=${f}`;
+            window.location = `${downloadURL}?fileName=${f}`;
             return false;
         });
     }
@@ -1048,7 +1068,7 @@
                                     </button>
                                     <div class="collapse navbar-dark navbar-collapse" id="navbarTogglerQTL">
                                         <span class="navbar-text text-white pr-2">
-                                            {{ config.NAV_DATASET|safe }} <i class="fas fa-long-arrow-alt-right"></i>
+                                            ${navDataset} <i class="fas fa-long-arrow-alt-right"></i>
                                         </span>
                                         <form class="form-inline">
                                             <select data-style="btn-sm btn-light" class="selectpicker" id="datasetSelect">
@@ -2327,7 +2347,7 @@
             const opts = { };
 
             const searchResult = await fetch(
-                `https://{{ api_url }}/api/gene/${ensemblID}?species=Mm&release=${ensembl}`,
+                `https://${apiURL}/api/gene/${ensemblID}?species=Mm&release=${ensembl}`,
                 opts
             ).then(res => res.json());
 
@@ -2947,16 +2967,16 @@
             logDebug('minPos=', minPos);
             logDebug('maxPos=', maxPos);
 
-            let snpAssocURL = `{{ config.API_R_BASE }}/snpassoc?dataset=${global.datasetID}&id=${id}&chrom=${chromosome}&location=${locationMb}&window_size=${zoomWindow}`;
-            let genesInfoURL = `${window.location.protocol}//{{ api_url }}/api/exon_info?release=${global.currentDataset.ensembl_release}&species=${global.currentDataset.ensembl_species}&chrom=${chromosome}`;
+            let snpAssocURL = `${rBaseURL}/snpassoc?dataset=${global.datasetID}&id=${id}&chrom=${chromosome}&location=${locationMb}&window_size=${zoomWindow}`;
+            let genesInfoURL = `${window.location.protocol}//${apiURL}/api/exon_info?release=${global.currentDataset.ensembl_release}&species=${global.currentDataset.ensembl_species}&chrom=${chromosome}`;
 
             if (covar !== 'additive') {
                 snpAssocURL += `&intcovar=${covar}`;
             }
 
-            {% if config.API_R_NUM_CORES %}
-            snpAssocURL += '&cores={{ config.API_R_NUM_CORES }}';
-            {% endif %}
+            if (rNumCores)
+                snpAssocURL += `&cores=${rNumCores}`;
+            
 
             let submitData = {
                 urls:[{
@@ -2971,7 +2991,7 @@
             logDebug('global.currentDataset.datatype.toLowerCase()=', global.currentDataset.datatype.toLowerCase());
 
             if (global.currentDataset.datatype !== 'pheno') {
-                let genesRankingURL = `{{ config.API_R_BASE }}/rankings?dataset=${global.datasetID}&chrom=${chromosome}`;
+                let genesRankingURL = `${rBaseURL}/rankings?dataset=${global.datasetID}&chrom=${chromosome}`;
                 submitData['urls'].push({
                     url_id: 'genesRankingURL',
                     url: genesRankingURL
@@ -3015,7 +3035,7 @@
             logDebug('updateSNPAssocData: ', groupID);
 
             if (global.runningTask) {
-                let statusURL = statusURL + groupID;
+                let statusURL = statusBaseURL + groupID;
                 $.ajax({
                     type: 'GET',
                     url: statusURL,
@@ -3080,7 +3100,7 @@
             } else {
                 // TODO: cleanup
                 logDebug('canceling');
-                let cancelURL = `{{ url_for('api.api_cancel', group_id='', _external=False) }}${groupID}`;
+                let cancelURL = `${cancelBaseURL}${groupID}`;
                 $.getJSON(cancelURL, function (data) {
                     $('#snpWindowMenuShift').html('');
                     $('#snpWindowMenu').html('');
@@ -3090,9 +3110,12 @@
         }
 
         function exportEffectData(id, effectData, lodData, covar, category) {
-            let csvContent = `"id","chromosome","position"{%- for s in config.PLOT_EFFECT_STRAINS -%}
-                ,"{{ s['name'] }}"
-            {%- endfor -%},"lod"\n`;
+            let csvContent = `"id","chromosome","position"`;
+            plotEffectStrains.forEach(s => {
+                csvContent += `,"${s.name}"`;
+            });
+
+            csvContent += `,"lod"\n`;
 
             $.each(effectData, function(k, v) {
                 let line = `"${v[0]}","${v[1]}",${v[2]},${v[3]},${v[4]},${v[5]},${v[6]},${v[7]},${v[8]},${v[9]},${v[10]},`;
@@ -3128,13 +3151,14 @@
             logDebug('plotEffectChart() ', effectData, lodData, covar, category);
 
             let strainInfo = {};
-            {%- for s in config.PLOT_EFFECT_STRAINS %}
-            strainInfo['{{ s['key'] }}'] = {
-                color: '{{ s['color'] }}',
-                name: '{{ s['name'] }}',
-                data: []
-            };
-            {%- endfor %}
+            plotEffectStrains.forEach(s => {
+                strainInfo[s.key] = {
+                    color: s.color,
+                    name: s.name,
+                    data: []  // Initialize data as an empty array
+                };
+            });
+
 
             let renderTo = '';
             let isCovar = false;
@@ -3160,22 +3184,26 @@
             let val = null;
 
             $.each(effectData, function(index, element) {
-                //{"A":-0.1224,..."H":1.45,"chr":"4","id":"4_156339889","pos":156.3399}
-                //id,chrom,pos,A-H
-                let position = element[2];
+                // Assuming position is in a fixed place like element['pos']
+                let position = element['pos'];
 
-            {%- for s in config.PLOT_EFFECT_STRAINS -%}
-                {#- when data is expanded -#}
-                {#- strainInfo['{{ s['key'] }}']['data'].push([position, element.{{ s['key'] }}]); -#}
-                {#- allEffectValues.push(element.{{ s['key'] }}); -#}
+                // Iterate through each strain
+                plotEffectStrains.forEach((s, i) => {
+                    let val = element[s.key];  // Directly using the key of each strain to access the value
 
-                {#- when data is collapsed #}
-                val = element[{{ loop.index0 + 3}}];
-                if (!isNaN(+val))  {
-                    strainInfo['{{ s['key'] }}'].data.push([position, val]);
-                    allEffectValues.push(val);
-                }
-            {%- endfor %}
+                    if (!isNaN(+val)) {
+                        // Ensure strainInfo is initialized for the strain
+                        if (!strainInfo[s.key]) {
+                            strainInfo[s.key] = { data: [] };
+                        }
+
+                        // Push the position and value into the strain's data array
+                        strainInfo[s.key].data.push([position, val]);
+
+                        // Push the value into allEffectValues
+                        allEffectValues.push(val);
+                    }
+                });
             });
 
             let effectMinValue = Math.floor(Math.min.apply(null, allEffectValues));
@@ -3728,7 +3756,7 @@
          */
         function generateMediationPlot(id, markerID) {
             let mediateAgainst = $('#dsMediateAgainstID').val();
-            let mediateURL = `{{ config.API_R_BASE }}/mediate?dataset=${global.datasetID}&id=${id}&marker_id=${markerID}&dataset_mediate=${mediateAgainst}`;
+            let mediateURL = `${rBaseURL}/mediate?dataset=${global.datasetID}&id=${id}&marker_id=${markerID}&dataset_mediate=${mediateAgainst}`;
 
             let submitData = {
                 urls:[{
@@ -3769,7 +3797,7 @@
             logDebug('updateMediationData{} ', groupID);
 
             if (global.runningTask) {
-                let statusURL = statusURL + groupID;
+                let statusURL = statusBaseURL + groupID;
                 $.ajax({
                     type: 'GET',
                     url: statusURL,
@@ -3827,7 +3855,7 @@
             } else {
                 // TODO: cleanup
                 logDebug('canceling');
-                let cancelURL = `{{ url_for('api.api_cancel', group_id='', _external=False) }}${groupID}`;
+                let cancelURL = `${cancelBaseURL}${groupID}`;
                 $.getJSON(cancelURL, function (data) {
                     logDebug(data);
                     $('#plotMediation').html('');
@@ -3840,15 +3868,15 @@
          *
          */
         function generateEffectPlot(id, chromosome, covar) {
-            let effectURL = `{{ config.API_R_BASE }}/foundercoefs?dataset=${global.datasetID}&id=${id}&chrom=${chromosome}&intcovar=${covar}`;
+            let effectURL = `${rBaseURL}/foundercoefs?dataset=${global.datasetID}&id=${id}&chrom=${chromosome}&intcovar=${covar}`;
             effectURL += '&blup=' + $('#performBLUP').is(':checked');
 
-            let lodURL = `{{ config.API_R_BASE }}/lodscansamples?dataset=${global.datasetID}&id=${id}&chrom=${chromosome}&intcovar=${covar}`;
+            let lodURL = `${rBaseURL}/lodscansamples?dataset=${global.datasetID}&id=${id}&chrom=${chromosome}&intcovar=${covar}`;
 
-            {% if config.API_R_NUM_CORES %}
-            effectURL += '&cores={{ config.API_R_NUM_CORES }}';
-            lodURL += '&cores={{ config.API_R_NUM_CORES }}';
-            {% endif %}
+            if (rNumCores) {
+                effectURL += `&cores=${rNumCores}`;
+                lodURL += `&cores=${rNumCores}`;
+            }
 
             let submitData = {
                 urls:[{
@@ -3894,7 +3922,7 @@
             logDebug('updateEffectData() ', groupID);
 
             if (global.runningTask) {
-                let statusURL = statusURL + groupID;
+                let statusURL = statusBaseURL + groupID;
                 $.ajax({
                     type: 'GET',
                     url: statusURL,
@@ -3956,7 +3984,7 @@
             } else {
                 // TODO: cleanup
                 logDebug('canceling');
-                let cancelURL = `{{ url_for('api.api_cancel', group_id='', _external=False) }}${groupID}`;
+                let cancelURL = `${cancelBaseURL}${groupID}`;
                 $.getJSON(cancelURL, function (data) {
                     logDebug(data);
                     $('#allEffectPlots').html('');
@@ -3970,7 +3998,7 @@
             logDebug(groupID);
 
             if (global.runningTask) {
-                let statusURL = statusURL + groupID;
+                let statusURL = statusBaseURL + groupID;
                 $.ajax({
                     type: 'GET',
                     url: statusURL,
@@ -4025,7 +4053,7 @@
             } else {
                 // TODO: cleanup
                 logDebug('canceling');
-                let cancelURL = `{{ url_for('api.api_cancel', group_id='', _external=False) }}${groupID}`;
+                let cancelURL = `${cancelBaseURL}${groupID}`;
                 $.getJSON(cancelURL, function (data) {
                     logDebug(data);
                     global.chartCorrelation = null;
@@ -4058,7 +4086,7 @@
             }
 
 
-            let urlCorrelation = `{{ config.API_R_BASE }}/correlation?dataset=${global.datasetID}&id=${currentID}&dataset_correlate=${datasetID}`;
+            let urlCorrelation = `${rBaseURL}/correlation?dataset=${global.datasetID}&id=${currentID}&dataset_correlate=${datasetID}`;
 
             if ((interactiveCovariate !== undefined) &&
                 (interactiveCovariate !== null) &&
@@ -4106,7 +4134,7 @@
             let html = `<div class="col">
                             <div class="jumbotron jumbotron-fluid" style="background: none">
                                 <div class="container">
-                                    <h1 class="display-3">{{ config.MAIN_TITLE|safe }}</h1>
+                                    <h1 class="display-3">${mainTitle}</h1>
                                     <p class="lead">Please search for a term of interest.</p>
                                 </div>
                             </div>
@@ -4779,50 +4807,56 @@
 
             let plotShapes = [];
             let plotAnnotations = [];
+            let _plotLines = [];
 
-            {% if config.PLOT_LOD_LINES %}
-            //
-            // build the horizontal lines
-            //
-            let lineVals = [
-                {% for l in config.PLOT_LOD_LINES %}
-                    {'val':{{l.val}}, 'color':'{{l.color}}', 'text':'{{l.text }}' },
-                {% endfor %}
-            ];
-            let _plotLines = [
-                {% for l in config.PLOT_LOD_LINES %}
-                    {value:{{l.val}}, color:'{{l.color}}', zIndex:5, width:2, label:{
-                        text:'{{l.text }}', align:'right'
-                    } },
-                {% endfor %}
-                ];
-            for (let l in lineVals) {
-                plotShapes.push({
-                    type: 'line',
-                    xref: 'paper',
-                    x0: 0,
-                    y0: lineVals[l].val,
-                    x1: 1,
-                    y1: lineVals[l].val,
-                    line: {
-                        color: lineVals[l].color,
-                        width: 1.5
-                    },
-                    layer: 'above',
-                });
+            if (plotLODLines) {
+                // Generate the lineVals array from plotLODLines
+                let lineVals = plotLODLines.map(l => ({
+                    val: l.val,
+                    color: l.color,
+                    text: l.text
+                }));
 
-                plotAnnotations.push({
-                    x: 1,
-                    y: lineVals[l].val,
-                    xref: 'paper',
-                    yref: 'y',
-                    text: lineVals[l].text,
-                    xanchor: 'left',
-                    yanchor: 'middle',
-                    showarrow: false,
+                // Generate the _plotLines array for plotting configurations
+                _plotLines = plotLODLines.map(l => ({
+                    value: l.val,
+                    color: l.color,
+                    zIndex: 5,
+                    width: 2,
+                    label: {
+                        text: l.text,
+                        align: 'right'
+                    }
+                }));
+                
+                // Create shapes and annotations based on lineVals
+                lineVals.forEach(line => {
+                    plotShapes.push({
+                        type: 'line',
+                        xref: 'paper',
+                        x0: 0,
+                        y0: line.val,
+                        x1: 1,
+                        y1: line.val,
+                        line: {
+                            color: line.color,
+                            width: 1.5
+                        },
+                        layer: 'above',
+                    });
+
+                    plotAnnotations.push({
+                        x: 1,
+                        y: line.val,
+                        xref: 'paper',
+                        yref: 'y',
+                        text: line.text,
+                        xanchor: 'left',
+                        yanchor: 'middle',
+                        showarrow: false,
+                    });
                 });
             }
-            {% endif %}
 
 
             let exporting = appendExportButton('Download CSV', function() {
@@ -4956,9 +4990,7 @@
                     title: {
                         text: 'LOD'
                     },
-                    {% if config.PLOT_LOD_LINES %}
                     plotLines: _plotLines
-                    {% endif %}
                 },
             });
         }
@@ -5298,7 +5330,7 @@
             logDebug("updateGeneSelect submitData=", submitData);
 
             if (global.runningTask) {
-                let statusURL = `{{ url_for('api.api_status', group_id='', _external=False) }}${groupID}`;
+                let statusURL = `${statusBaseURL}${groupID}`;
                 $.ajax({
                     type: 'GET',
                     url: statusURL,
@@ -5406,7 +5438,7 @@
             } else {
                 // TODO: cleanup
                 logDebug('canceling');
-                let cancelURL = `{{ url_for('api.api_cancel', group_id='', _external=False) }}${groupID}`;
+                let cancelURL = `${cancelBaseURL}${groupID}`;
                 $.getJSON(cancelURL, function (data) {
                     logDebug(data);
                 });
@@ -5417,10 +5449,10 @@
          * Perform gene search.
          */
         function selectPhenotype(phenotypeID, datasetID, covar) {
-            let urlExpression = `{{ config.API_R_BASE }}/expression?dataset=${datasetID}&id=${phenotypeID}`;
-            let urlLOD = `{{ config.API_R_BASE }}/lodscan?dataset=${datasetID}&id=${phenotypeID}`;
-            let urlLODCovar = `{{ config.API_R_BASE }}/lodscan?dataset=${datasetID}&id=${phenotypeID}`;
-            let urlCorrelation = `{{ config.API_R_BASE }}/correlation?dataset=${datasetID}&id=${phenotypeID}`;
+            let urlExpression = `${rBaseURL}/expression?dataset=${datasetID}&id=${phenotypeID}`;
+            let urlLOD = `${rBaseURL}/lodscan?dataset=${datasetID}&id=${phenotypeID}`;
+            let urlLODCovar = `${rBaseURL}/lodscan?dataset=${datasetID}&id=${phenotypeID}`;
+            let urlCorrelation = `${rBaseURL}/correlation?dataset=${datasetID}&id=${phenotypeID}`;
 
             // TODO: make reset function
             global.gene = null;
@@ -5451,12 +5483,12 @@
 
             // TODO: add ncores?, regress_local? to urlLOD, or handle backend?
             //URL += '&ncores=' + _G.api_cores;
-            {% if config.API_R_NUM_CORES %}
-            if (urlLODCovar !== null) {
-                urlLODCovar += '&cores={{ config.API_R_NUM_CORES }}';
+            if (rNumCores) {
+                if (urlLODCovar !== null) {
+                    urlLODCovar += `&cores=${rNumCores}`;
+                }
+                urlLOD += `&cores=${rNumCores}`;
             }
-            urlLOD += '&cores={{ config.API_R_NUM_CORES }}';
-            {% endif %}
 
             let submitData = {
                 urls:[{
@@ -5532,7 +5564,7 @@
             logDebug(groupID);
 
             if (global.runningTask) {
-                let statusURL = `{{ url_for('api.api_status', group_id='', _external=False) }}${groupID}`;
+                let statusURL = `${statusBaseURL}${groupID}`;
                 $.ajax({
                     type: 'GET',
                     url: statusURL,
@@ -5626,7 +5658,7 @@
             } else {
                 // TODO: cleanup
                 logDebug('canceling');
-                let cancelURL = `{{ url_for('api.api_cancel', group_id='', _external=False) }}${groupID}`;
+                let cancelURL = `${cancelBaseURL}${groupID}`;
                 $.getJSON(cancelURL, function (data) {
                     logDebug(data);
                 });
@@ -5639,14 +5671,14 @@
         function selectGeneProtein(geneID, proteinID, phosID, datasetID, covar) {
             logDebug(`selectGeneProtein(${geneID}, ${proteinID}, ${phosID}, ${datasetID}, ${covar})`);
 
-            let urlGeneData = `${window.location.protocol}//{{ api_url }}/api/gene/${geneID}`;
+            let urlGeneData = `${window.location.protocol}//${apiURL}/api/gene/${geneID}`;
             urlGeneData += ('?release=' + global.getDataset(datasetID).ensembl_release);
             urlGeneData += ('&species=' + global.getDataset(datasetID).ensembl_species);
 
-            let urlExpression = `{{ config.API_R_BASE }}/expression?dataset=${datasetID}&id=`;
-            let urlLOD = `{{ config.API_R_BASE }}/lodscan?dataset=${datasetID}&id=`;
-            let urlLODCovar = `{{ config.API_R_BASE }}/lodscan?dataset=${datasetID}&id=`;
-            let urlCorrelation = `{{ config.API_R_BASE }}/correlation?dataset=${datasetID}&id=`;
+            let urlExpression = `${rBaseURL}/expression?dataset=${datasetID}&id=`;
+            let urlLOD = `${rBaseURL}/lodscan?dataset=${datasetID}&id=`;
+            let urlLODCovar = `${rBaseURL}/lodscan?dataset=${datasetID}&id=`;
+            let urlCorrelation = `${rBaseURL}/correlation?dataset=${datasetID}&id=`;
 
             global.gene = null;
             global.geneID = geneID;
@@ -5694,12 +5726,12 @@
 
             // TODO: add ncores?, regress_local? to urlLOD, or handle backend?
             //URL += '&ncores=' + _G.api_cores;
-            {% if config.API_R_NUM_CORES %}
-            if (urlLODCovar !== null) {
-                urlLODCovar += '&cores={{ config.API_R_NUM_CORES }}';
+            if (rNumCores) {
+                if (urlLODCovar !== null) {
+                    urlLODCovar += `&cores=${rNumCores}`;
+                }
+                urlLOD += `&cores=${rNumCores}`;
             }
-            urlLOD += '&cores={{ config.API_R_NUM_CORES }}';
-            {% endif %}
 
             let submitData = {
                 urls:[{
@@ -5783,7 +5815,7 @@
             logDebug(groupID);
 
             if (global.runningTask) {
-                let statusURL = `{{ url_for('api.api_status', group_id='', _external=False) }}${groupID}`;
+                let statusURL = `${statusBaseURL}${groupID}`;
                 $.ajax({
                     type: 'GET',
                     url: statusURL,
@@ -5870,7 +5902,7 @@
             } else {
                 // TODO: cleanup
                 logDebug('canceling');
-                let cancelURL = `{{ url_for('api.api_cancel', group_id='', _external=False) }}${groupID}`;
+                let cancelURL = `${cancelBaseURL}${groupID}`;
                 $.getJSON(cancelURL, function (data) {
                     logDebug(data);
                 });
@@ -5907,7 +5939,7 @@
                 }
             } else {
                 logDebug('covar NOT in global.LODChartData, so go get it');
-                let urlLOD = `{{ config.API_R_BASE }}/lodscan?dataset=${global.datasetID}&id=`;
+                let urlLOD = `${rBaseURL}/lodscan?dataset=${global.datasetID}&id=`;
 
                 if (global.currentDataset.datatype === 'mrna') {
                     urlLOD += `${global.geneID}`;
@@ -5926,9 +5958,9 @@
 
                 // TODO: add ncores?, regress_local? to urlLOD, or handle backend?
                 //URL += '&ncores=' + _G.api_cores;
-                {% if config.API_R_NUM_CORES %}
-                urlLOD += '&cores={{ config.API_R_NUM_CORES }}';
-                {% endif %}
+                if (rNumCores) {
+                urlLOD += `&cores=${rNumCores}`;
+                }
 
                 let submitData = {
                     urls:[{
