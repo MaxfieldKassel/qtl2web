@@ -1,18 +1,26 @@
-
+/**
+ * Exports effect data to a CSV file.
+ * @param {string} id - The identifier for the dataset.
+ * @param {Array} effectData - Array containing effect data points.
+ * @param {Array} lodData - Array of LOD (Log of Odds) data points corresponding to the effects.
+ * @param {string} covar - The covariate used in the analysis.
+ * @param {string|null} category - Optional category for further segregation of the data.
+ */
 function exportEffectData(id, effectData, lodData, covar, category) {
     let csvContent = `"id","chromosome","position"`;
     plotEffectStrains.forEach(s => {
         csvContent += `,"${s.name}"`;
     });
-
     csvContent += `,"lod"\n`;
 
-    $.each(effectData, function(k, v) {
+    // Iterate over effectData to format each row of the CSV
+    $.each(effectData, function (k, v) {
         let line = `"${v[0]}","${v[1]}",${v[2]},${v[3]},${v[4]},${v[5]},${v[6]},${v[7]},${v[8]},${v[9]},${v[10]},`;
-        line += lodData[k].y;
-        csvContent += `${line}\n`;
+        line += lodData[k].y;  // Append LOD data to the line
+        csvContent += `${line}\n`;  // Add the completed line to CSV content
     });
 
+    // Check if a category is specified and adjust the filename accordingly
     if (category !== null) {
         downloadCSV(csvContent, `${id}_EFFECT_${covar}_${category}.csv`, 'text/csv;encoding:utf-8');
     } else {
@@ -21,22 +29,37 @@ function exportEffectData(id, effectData, lodData, covar, category) {
 }
 
 /**
- * Plot the effect data.
- * @param {Object} effectData - the effect data
+ * Plot the effect data based on genetic covariates and chromosome.
+ * @param {Object} effectData - An object containing the effect data for various categories or covariates.
+ * @param {Object} lodData - An object containing the LOD (Log of Odds) scores corresponding to the effect data.
+ * @param {string} chromosome - The chromosome for which the data is being plotted.
+ * @param {string} covar - The covariate based on which the data is differentiated, such as 'additive'.
  */
 function plotEffectData(effectData, lodData, chromosome, covar) {
-    logDebug('plotEffectData() ', effectData, lodData, covar);
+    logDebug('plotEffectData()', effectData, lodData, covar);
 
     if (covar === 'additive') {
+        // Plot data for an additive covariate without separating by categories
         plotEffectChart(effectData[covar], null, covar, null, chromosome);
     } else {
-        $.each(effectData, function(key, value) {
-            // key = category value, i.e for sex would be M,F
+        // Iterate through the effectData object to plot each category separately
+        $.each(effectData, function (key, value) {
+            // key represents the category value, e.g., for sex it would be 'M' or 'F'
+            // Plot each category with its corresponding LOD data
             plotEffectChart(value, lodData[key], covar, key, chromosome);
         });
     }
 }
 
+/**
+ * Plots the effect data and lod data on a chart based on the given parameters.
+ * 
+ * @param {Object} effectData - The effect data for the chart.
+ * @param {Object} lodData - The LOD (log of odds) data for the chart.
+ * @param {string} covar - Covariate type, determines the rendering target.
+ * @param {string} category - Category to plot if covariate is used.
+ * @param {string} chromosome - Chromosome number to filter data on.
+ */
 function plotEffectChart(effectData, lodData, covar, category, chromosome) {
     logDebug('plotEffectChart() ', effectData, lodData, covar, category);
 
@@ -71,9 +94,8 @@ function plotEffectChart(effectData, lodData, covar, category, chromosome) {
     logDebug('renderTo=', renderTo);
 
     let allEffectValues = [];
-    let val = null;
 
-    $.each(effectData, function(index, element) {
+    $.each(effectData, function (index, element) {
         let position = element[2];
 
         // Iterate through each strain
@@ -120,7 +142,7 @@ function plotEffectChart(effectData, lodData, covar, category, chromosome) {
         xAxisTickVals.push((20 * i) + 'Mb');
     }
 
-    $.each(strainInfo, function(key, value) {
+    $.each(strainInfo, function (key, value) {
         let s = {
             animation: 0,
             color: value.color,
@@ -134,14 +156,14 @@ function plotEffectChart(effectData, lodData, covar, category, chromosome) {
             stack: 0,
             tooltip: {
                 shared: false,
-                headerFormat:'<b>{series.name}</b>',
-                pointFormatter: function() {
+                headerFormat: '<b>{series.name}</b>',
+                pointFormatter: function () {
                     return `<br>Effect: ${this.y}<br>Position: ${this.x.toLocaleString()}`;
                 }
             },
             turboThreshold: 0,
             type: 'line',
-            yAxis:'axisEffect',
+            yAxis: 'axisEffect',
         };
         series.push(s);
     });
@@ -170,7 +192,7 @@ function plotEffectChart(effectData, lodData, covar, category, chromosome) {
     let lodMinValue = Infinity;
     let lodMaxValue = -Infinity;
 
-    $.each(lodData, function(index, element) {
+    $.each(lodData, function (index, element) {
         //
         // element = {"[id]","[chr]",[position],[data]}
         //
@@ -206,7 +228,7 @@ function plotEffectChart(effectData, lodData, covar, category, chromosome) {
         tooltip: {
             shared: false,
             headerFormat: '',
-            pointFormatter: function() {
+            pointFormatter: function () {
                 return `<br>LOD: ${this.y}<br>Position: ${this.x.toLocaleString()}`;
             }
         },
@@ -224,14 +246,14 @@ function plotEffectChart(effectData, lodData, covar, category, chromosome) {
         let maxNumTicks = Math.min(4, Math.ceil(lodMaxTick / 10) * 10);
         lodTickVals = [];
 
-        let step = Math.ceil((lodMaxValue/maxNumTicks) / 10) * 10;
+        let step = Math.ceil((lodMaxValue / maxNumTicks) / 10) * 10;
         for (let i = 0; i < lodMaxValue; i += step) {
             lodTickVals.push(i);
         }
         lodTickVals.push(lodMaxTick);
     }
 
-    let exporting = appendExportButton('Download CSV', function() {
+    let exporting = appendExportButton('Download CSV', function () {
         exportEffectData(currentID, effectData, newLodData, covar, category);
     });
 
@@ -294,7 +316,7 @@ function plotEffectChart(effectData, lodData, covar, category, chromosome) {
             height: '70%',
             id: 'axisEffect',
             labels: {
-                formatter: function() {
+                formatter: function () {
                     if (this.isFirst) {
                         return '';
                     }
@@ -310,7 +332,7 @@ function plotEffectChart(effectData, lodData, covar, category, chromosome) {
             height: '30%',
             id: 'axisLOD',
             labels: {
-                formatter: function() {
+                formatter: function () {
                     if (this.isLast) {
                         return '';
                     }
@@ -335,39 +357,46 @@ function plotEffectChart(effectData, lodData, covar, category, chromosome) {
 }
 
 
-  /**
-         * Start downloading effect data.
-         *
-         */
-  function generateEffectPlot(id, chromosome, covar) {
+/**
+ * Initiates the process to download and plot effect data based on given parameters.
+ *
+ * @param {string} id - The identifier for the dataset.
+ * @param {string} chromosome - The chromosome of interest.
+ * @param {string} covar - The covariate to use, which determines the URLs and data to fetch.
+ */
+function generateEffectPlot(id, chromosome, covar) {
+    // Construct URL for fetching effect coefficients
     let effectURL = `${rBaseURL}/foundercoefs?dataset=${global.datasetID}&id=${id}&chrom=${chromosome}&intcovar=${covar}`;
-    effectURL += '&blup=' + $('#performBLUP').is(':checked');
+    effectURL += '&blup=' + $('#performBLUP').is(':checked'); // Append BLUP status to the URL
 
-    let lodURL = `${rBaseURL}/lodscansamples?dataset=${global.datasetID}&id=${id}&chrom=${chromosome}&intcovar=${covar}`;
-
+    // Conditional addition of cores to URLs if specified
     if (rNumCores) {
         effectURL += `&cores=${rNumCores}`;
-        lodURL += `&cores=${rNumCores}`;
     }
 
+    // Prepare data payload for AJAX request
     let submitData = {
-        urls:[{
+        urls: [{
             url_id: 'effect',
-            url: effectURL,
-        }]};
+            url: effectURL
+        }]
+    };
 
+    // Add LOD scan samples URL if covariate is not 'additive'
     if (covar !== 'additive') {
+        let lodURL = `${rBaseURL}/lodscansamples?dataset=${global.datasetID}&id=${id}&chrom=${chromosome}&intcovar=${covar}`;
+        lodURL += `&cores=${rNumCores}`;
         submitData.urls.push({
             url_id: 'lodSamples',
             url: lodURL
         });
     }
 
+    // Initiate task and clear any previous plots
     startTask();
-
-    // reset the chart and clear it
     $('#allEffectPlots').html('');
 
+    // AJAX POST request to submit URLs for processing
     $.ajax({
         type: 'POST',
         url: submitURL,
@@ -375,26 +404,29 @@ function plotEffectChart(effectData, lodData, covar, category, chromosome) {
         data: JSON.stringify(submitData),
         retries: 3,
         retryInterval: 1000,
-        success: function(data, status, request) {
+        success: function (data, status, request) {
             updateEffectData(data.group_id, id, chromosome, covar);
         },
-        error: function(jqXHR, textStatus, errorThrown) {
-            showErrorMessage(errorThrown, textStatus);
+        error: function (jqXHR, textStatus, errorThrown) {
+            showErrorMessage(`Error occurred: ${errorThrown}`, textStatus);
         }
     });
 }
 
 /**
- * Update the status of the downloading effect data.
+ * Updates the status of the downloading effect data for a given task.
  *
- * @param {string} groupID - the group identifier of the task
+ * @param {string} groupID - The group identifier of the task.
+ * @param {string} id - The task identifier.
+ * @param {string} chromosome - The chromosome related to the task.
+ * @param {string} covar - The covariate for the effect calculation.
  */
 function updateEffectData(groupID, id, chromosome, covar) {
-    // send GET request to status URL
     logDebug('updateEffectData() ', groupID);
 
+    // Check if a task is currently running
     if (global.runningTask) {
-        let statusURL = statusBaseURL + groupID;
+        const statusURL = `${statusBaseURL}${groupID}`;
         $.ajax({
             type: 'GET',
             url: statusURL,
@@ -402,65 +434,38 @@ function updateEffectData(groupID, id, chromosome, covar) {
             retryInterval: 1000,
             success: function (data, status, request) {
                 logDebug('DATA=======', data);
-                if (data.status === 'DONE') {
-                    if ('error' in data) {
-                        // MAJOR ERROR
-                        let message = `Unfortunately, there was a problem contacting the server.  Please try again.`;
+                // Delegate the response handling to handleTaskResponse
+                handleTaskResponse(data, function (data) {
+                    checkResponseStatus(data, function (data) {
+                        // Plot data based on covariate
+                        plotEffectData(data.response_data.effect.response.result,
+                            covar === 'additive' ? null : data.response_data.lodSamples.response.result,
+                            chromosome, covar);
                         stopTask();
-                        showErrorMessage(message, null);
-                    } else if (data.number_tasks_errors !== 0) {
-                        let message = `Unfortunately, we encountered an error.  Please try again.`;
-                        let errorMessages = '';
-                        $.each(data.response_data, function (key, value) {
-                            if ('error' in value) {
-                                errorMessages += (`<strong>${key}:</strong> ${value.error}<br>`);
-                            }
-                        });
-
-                        stopTask();
-                        showErrorMessage(message, errorMessages);
-                    } else if (data.number_tasks_errors === 0) {
-                        // check to make sure the status codes are good
-                        let errorMessages = '';
-                        $.each(data.response_data, function (key, value) {
-                            if (value.status_code !== 200) {
-                                errorMessages += (`<strong>${key}:</strong> ${value.response.error}<br>`);
-                            }
-                        });
-
-                        if (errorMessages !== '') {
-                            let message = `Unfortunately, there was a problem calculating the Effect Plot.`;
-                            stopTask();
-                            showErrorMessage(message, errorMessages);
-                        } else {
-                            // show result, there will be 1 datasets to get
-                            if (covar === 'additive') {
-                                plotEffectData(data.response_data.effect.response.result, null, chromosome, covar);
-                            } else {
-                                plotEffectData(data.response_data.effect.response.result,
-                                               data.response_data.lodSamples.response.result,
-                                               chromosome, covar);
-                            }
-                            stopTask();
-                        }
-                    }
-                } else {
-                    // rerun in 1 seconds
-                    logDebug('Not done, keep checking...');
+                    });
+                }, function () {
                     setTimeout(function () {
                         updateEffectData(groupID, id, chromosome, covar);
                     }, 1000);
-                }
+                });
             }
         });
     } else {
-        // TODO: cleanup
-        logDebug('canceling');
-        let cancelURL = `${cancelBaseURL}${groupID}`;
-        $.getJSON(cancelURL, function (data) {
-            logDebug(data);
-            $('#allEffectPlots').html('');
-        });
+        // Handle task cancellation if no task is running
+        cancelEffectTask(groupID);
     }
 }
 
+/**
+ * Cancels the running task and clears related UI elements.
+ *
+ * @param {string} groupID - The group identifier of the task to cancel.
+ */
+function cancelEffectTask(groupID) {
+    logDebug('canceling');
+    const cancelURL = `${cancelBaseURL}${groupID}`;
+    $.getJSON(cancelURL, function (data) {
+        logDebug(data);
+        $('#allEffectPlots').html('');
+    });
+}
