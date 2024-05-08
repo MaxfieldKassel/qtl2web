@@ -1999,23 +1999,6 @@
         }
 
         
-
-        function createGeneRankings(geneRankings, geneInfo) {
-            let rankings = {};
-            $.each(geneRankings, function(idx, elem) {
-                rankings[elem['gene_id']] = elem['ranking'];
-            });
-
-            logDebug('rankings=', rankings);
-
-            $.each(geneInfo, function(idx, elem) {
-                elem['score'] = rankings[elem['id']] || randomInterval(10, 80);
-                elem['exons'] = elem['exons'].join(',');
-            });
-
-            return geneInfo;
-        }
-
         async function lodPeakGeneTooltipHandler(datum, mark, props) {
             logDebug(datum, mark, props);
             let AH = '';
@@ -2090,109 +2073,9 @@
         }
 
 
-        function parseCSQ(strCSQ) {
-            if (strCSQ.length <= 1) {
-                return "";
-            }
-
-            let consequences = new Set();
-            let csq_info_split = strCSQ.split(';');
-
-            for (let x = 0; x < csq_info_split.length; x++) {
-                let elems = csq_info_split[x].split('|')[4].split('&');
-                for (let y = 0; y < elems.length; y++) {
-                    consequences.add(elems[y]);
-                }
-            }
-
-            return Array.from(consequences).join(', ');
-        }
-
-        async function snpHandler(datum, mark, props) {
-            logDebug(datum, mark, props);
-            let sdp = sdpn_to_sdpD(datum.sdpn);
-            let csq = parseCSQ(datum.csq);
-
-            if ('lodc' in datum) {
-                return genomeSpyEmbed.html`
-                    <div class="title">
-                        <strong>${datum.snp}</strong>
-                    </div>
-                    <p class="summary">
-                        <strong>Position</strong> ${datum.chr}:${datum.pos.toLocaleString()}
-                        <br/>
-                        <strong>REF</strong> ${datum.ref}
-                        <br/>
-                        <strong>ALT</strong> ${datum.alt}
-                        <br/>
-                        <strong>SDP</strong> ${sdp}
-                        <br/>
-                        <strong>CSQ</strong> ${csq}
-                        <br/>
-                        <strong>LOD</strong> ${datum.lod}
-                        <br/>
-                        <strong>LOD ${datum.cov}</strong> ${datum.lodc}
-                    </p>`;
-            } else {
-                return genomeSpyEmbed.html`
-                    <div class="title">
-                        <strong>${datum.snp}</strong>
-                    </div>
-                    <p class="summary">
-                        <strong>Position</strong> ${datum.chr}:${datum.pos.toLocaleString()}
-                        <br/>
-                        <strong>REF</strong> ${datum.ref}
-                        <br/>
-                        <strong>ALT</strong> ${datum.alt}
-                        <br/>
-                        <strong>SDP</strong> ${sdp}
-                        <br/>
-                        <strong>CSQ</strong> ${csq}
-                        <br/>
-                        <strong>LOD</strong> ${datum.lod}
-                    </p>`;
-            }
-        }
-
         
 
-        // TODO: Replace with an LRU-cache
-        const symbolSummaryCache = new Map();
-
-        /**
-         * @type {import("./tooltipHandler").TooltipHandler}
-         */
-        async function ensimplTooltipHandler(datum, mark, params) {
-            const ensembl_id = datum.id;
-
-            let summary =
-                symbolSummaryCache.get(ensembl_id) ??
-                (await debouncedFetchEnsimplSummary(ensembl_id));
-
-            if (summary) {
-                let e = global.currentDataset.ensembl_version;
-
-                symbolSummaryCache.set(ensembl_id, summary);
-                logDebug(summary);
-                return genomeSpyEmbed.html`
-                    <div class="title">
-                        <strong>${summary.id}</strong>
-                    </div>
-                    <p class="summary">
-                        <strong>Symbol</strong> ${summary.symbol}
-                        <br/>
-                        <strong>Name</strong> ${summary.name}
-                        <br/>
-                        <strong>Location</strong> ${summary.chromosome}:${summary.start}-${summary.end}
-                    </p>
-                    <p class="source">
-                        Source: Ensimpl ${e}
-                    </p>
-                `;
-            } else {
-                return null;
-            }
-        }
+        
         function debounce(func, wait, rejectOnDebounce = true) {
             /** @type {number} */
             let timeout;

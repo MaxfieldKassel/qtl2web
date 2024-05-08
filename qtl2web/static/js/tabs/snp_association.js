@@ -735,5 +735,169 @@ function updateSNPAssocData(groupID, id, chromosome, location, zoomWindow, domai
             $('#snpWindowMenu').html('');
             $('#plotSNPAssociation').html('');
         });
+    }   
+}
+
+/**
+ * Constructs gene information by assigning rankings and formatting exons.
+ * @param {Array} geneRankings - Array of objects containing gene rankings.
+ * @param {Array} geneInfo - Array of objects containing gene information.
+ * @returns {Array} Updated gene information with rankings and formatted exons.
+ */
+function createGeneRankings(geneRankings, geneInfo) {
+    // Create a map for quick lookup of rankings based on gene_id
+    const rankings = geneRankings.reduce((acc, elem) => {
+        acc[elem['gene_id']] = elem['ranking'];
+        return acc;
+    }, {});
+
+    logDebug('rankings=', rankings);
+
+    // Assign rankings to genes and convert exons array to comma-separated string
+    return geneInfo.map(elem => ({
+        ...elem,
+        score: rankings[elem['id']] || randomInterval(10, 80),
+        exons: elem['exons'].join(',')
+    }));
+}
+
+/**
+ * Handles the generation of HTML content based on the given SNP data.
+ * Logs debug information, converts SDP and CSQ values, and dynamically generates HTML based on the presence of LODC.
+ *
+ * @param {Object} datum - The data containing SNP information.
+ * @param {Object} mark - Additional marker information, not directly used in this function.
+ * @param {Object} props - Additional properties, not directly used in this function.
+ * @returns {String} HTML content representing the SNP data.
+ */
+async function snpHandler(datum, mark, props) {
+    logDebug(datum, mark, props);  // Log debug information
+
+    // Convert SDPN to SDPD and parse CSQ values.
+    const sdp = sdpn_to_sdpD(datum.sdpn);
+    const csq = parseCSQ(datum.csq);
+
+    // Generate and return HTML content based on whether 'lodc' is present in the data.
+    if ('lodc' in datum) {
+        return genomeSpyEmbed.html`
+            <div class="title">
+                <strong>${datum.snp}</strong>
+            </div>
+            <p class="summary">
+                <strong>Position</strong> ${datum.chr}:${datum.pos.toLocaleString()}
+                <br/>
+                <strong>REF</strong> ${datum.ref}
+                <br/>
+                <strong>ALT</strong> ${datum.alt}
+                <br/>
+                <strong>SDP</strong> ${sdp}
+                <br/>
+                <strong>CSQ</strong> ${csq}
+                <br/>
+                <strong>LOD</strong> ${datum.lod}
+                <br/>
+                <strong>LOD ${datum.cov}</strong> ${datum.lodc}
+            </p>`;
+    } else {
+        return genomeSpyEmbed.html`
+            <div class="title">
+                <strong>${datum.snp}</strong>
+            </div>
+            <p class="summary">
+                <strong>Position</strong> ${datum.chr}:${datum.pos.toLocaleString()}
+                <br/>
+                <strong>REF</strong> ${datum.ref}
+                <br/>
+                <strong>ALT</strong> ${datum.alt}
+                <br/>
+                <strong>SDP</strong> ${sdp}
+                <br/>
+                <strong>CSQ</strong> ${csq}
+                <br/>
+                <strong>LOD</strong> ${datum.lod}
+            </p>`;
     }
+}
+
+// TODO: Switch to LRU cache for better performance
+const symbolSummaryCache = new Map();
+
+/**
+ * Fetches and displays tooltip information for genes from the Ensimpl database, using a Map for caching to optimize repeated queries.
+ * This function fetches gene summary only if it's not already present in the cache, enhancing efficiency.
+ *
+ * @param {Object} datum - The data object containing gene identifiers.
+ * @param {Object} mark - Marker information, not directly used in this function.
+ * @param {Object} params - Additional parameters, not directly used in this function.
+ * @returns {Promise<String|null>} HTML content for the tooltip, or null if no data is found.
+ */
+async function ensimplTooltipHandler(datum, mark, params) {
+    const ensembl_id = datum.id;
+
+    // Attempt to retrieve the gene summary from cache; fetch from API if not found.
+    let summary = symbolSummaryCache.get(ensembl_id);
+    if (!summary) {
+        try {
+            summary = await debouncedFetchEnsimplSummary(ensembl_id);
+            if (summary) {
+                symbolSummaryCache.set(ensembl_id, summary);  // Cache the fetched summary
+                logDebug('Fetched and cached new summary for:', ensembl_id);
+            }
+        } catch (error) {
+            logDebug('Error fetching Ensimpl summary for:', ensembl_id, error);
+            return null;  // Return null if there is an error during fetch
+        }
+    } else {
+        logDebug('Retrieved summary from cache for:', ensembl_id);
+    }
+
+    // If summary is available, construct and return the HTML content.
+    if (summary) {
+        const e = global.currentDataset.ensembl_version;
+        return genomeSpyEmbed.html`
+            <div class="title">
+                <strong>${summary.id}</strong>
+            </div>
+            <p class="summary">
+                <strong>Symbol</strong> ${summary.symbol}
+                <br/>
+                <strong>Name</strong> ${summary.name}
+                <br/>
+                <strong>Location</strong> ${summary.chromosome}:${summary.start}-${summary.end}
+            </p>
+            <p class="source">
+                Source: Ensimpl ${e}
+            </p>
+        `;
+    } else {
+        return null;
+    }
+}
+
+
+/**
+ * Parses a CSQ (Consequence) string from genomic data, extracting unique consequence types.
+ * The input string is expected to be semicolon-separated entries, with each entry containing
+ * data fields separated by '|'. The consequence data is assumed to be in the 5th field (0-indexed),
+ * and multiple consequences in a field are separated by '&'.
+ *
+ * @param {string} strCSQ - The CSQ string to be parsed.
+ * @returns {string} A comma-separated string of unique consequences.
+ */
+function parseCSQ(strCSQ) {
+    if (strCSQ.length <= 1) {
+        return "";
+    }
+
+    const consequences = new Set();
+    const csq_info_split = strCSQ.split(';');
+
+    csq_info_split.forEach(info => {
+        const consequenceData = info.split('|')[4];
+        if (consequenceData) { // Ensure the consequence data exists
+            consequenceData.split('&').forEach(consequence => consequences.add(consequence));
+        }
+    });
+
+    return Array.from(consequences).join(', ');
 }
