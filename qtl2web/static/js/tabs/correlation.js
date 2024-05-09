@@ -68,8 +68,8 @@ function displayCorrelation(correlationData) {
             'phos': global.phosID,
             'pheno': global.phenotypeID
         };
-        
-        const cid = datatypeIDMap[global.currentDataset.datatype]; 
+
+        const cid = datatypeIDMap[global.currentDataset.datatype];
         global.currentCorrelateID = that.attr('dID');  // Store the clicked ID globally
 
         // Get the selected interactive covariate, if any
@@ -247,8 +247,9 @@ function updateCorrelationData(groupID, currentDataset, currentID, correlateData
                         global.correlationChartData = data.response_data.correlationPlot.response.result;
                         plotCorrelationChart();
                         stopTask();
-                    })}, () => {
-                        setTimeout(() => updateCorrelationData(groupID, currentDataset, currentID, correlateDataset, correlateID, correlateSymbol), 1000);
+                    })
+                }, () => {
+                    setTimeout(() => updateCorrelationData(groupID, currentDataset, currentID, correlateDataset, correlateID, correlateSymbol), 1000);
                 });
             }
         });
@@ -286,7 +287,7 @@ function cancelCorrelationTask(groupID) {
  */
 function generateCorrelationPlot(currentDataset, currentID, correlateDataset, correlateID, correlateSymbol, interactiveCovariate) {
     logDebug('Generating correlation plot:', currentDataset, currentID, correlateDataset, correlateID, correlateSymbol);
-    
+
     let urlCorrelationPlot = `${rBaseURL}/correlationplot?dataset=${currentDataset}&id=${currentID}&dataset_correlate=${correlateDataset}&id_correlate=${correlateID}`;
 
     if (interactiveCovariate !== undefined && interactiveCovariate !== null && interactiveCovariate !== 'none') {
@@ -333,32 +334,26 @@ function generateCorrelationPlot(currentDataset, currentID, correlateDataset, co
  * @returns {String} HTML content for the tooltip, which is dynamically generated based on the data point.
  */
 async function correlationTooltipHandler(datum, mark, props) {
-    // Array to hold HTML snippets for each key-value pair in the datum.map
     const itemTemplates = [];
 
-    // Iterate over each key-value pair in the datum.map object
-    $.each(datum.map, function(k, v) {
-        // Append a strong tag for the key and include the value; use line break for spacing
+    $.each(datum.map, function (k, v) {
         itemTemplates.push(genomeSpyEmbed.html`
             <strong>${v}</strong> ${datum[k]}<br/>
         `);
     });
 
-    // Check if the datum has an 'imputed' property set to true
     if (datum.imputed) {
-        // If imputed, append a styled italic tag indicating the data is imputed
         itemTemplates.push(genomeSpyEmbed.html`
             <i>Imputed</i>
         `);
     }
 
-    // Construct the final HTML using a div for title and p for the summary, including all items from itemTemplates
     return genomeSpyEmbed.html`
         <div class="title">
             <strong>${datum.sample_id}</strong>
         </div>
         <p class="summary">
-            ${itemTemplates.join('')} 
+            ${itemTemplates}
         </p>
     `;
 }
