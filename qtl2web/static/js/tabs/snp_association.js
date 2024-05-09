@@ -904,17 +904,6 @@ function parseCSQ(strCSQ) {
 
 const debouncedFetchEnsimplSummary = debounce(fetchEnsimplSummary, 500);
 
-
-/**
- * Debounces fetch requests to reduce the frequency of server calls when retrieving Ensimpl summaries.
- * @param {string} ensemblID - The Ensembl ID for which the summary needs to be fetched.
- * @returns {Function} A debounced function that fetches the Ensimpl summary.
- */
-function debouncedFetchEnsimplSummary(ensemblID) {
-    return debounced(ensemblID);
-}
-
-
 /**
  * Creates a debounced version of a function that delays invoking `func` until after `wait` milliseconds
  * have elapsed since the last time the debounced function was invoked.
