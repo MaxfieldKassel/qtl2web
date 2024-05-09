@@ -1,146 +1,95 @@
+/**
+ * Exports LOD peaks data for different dataset types to a CSV file.
+ * @param {string} id - Identifier for the dataset.
+ * @param {Array} peaks - Array of peak data from various analyses.
+ */
 function exportLODPeaks(id, peaks) {
-    let covar = $('#interactiveCovarPeaks').val();
-
+    const datasetType = global.currentDataset.datatype;
     let csvContent = '';
+    let headers = {
+        'mrna': '"gene_id","symbol","gene_chrom","gene_mid","marker_id","marker_chrom","marker_position","lod"',
+        'protein': '"protein_id","gene_id","symbol","gene_chrom","gene_mid","marker_id","marker_chrom","marker_position","lod"',
+        'phos': '"phos_id","protein_id","gene_id","symbol","gene_chrom","gene_mid","marker_id","marker_chrom","marker_position","lod"',
+        'pheno': '"marker_id","marker_chrom","marker_position","phenotype","lod"'
+    };
 
-    if (global.currentDataset.datatype === 'mrna') {
-        csvContent = '"gene_id","symbol","gene_chrom","gene_mid","marker_id","marker_chrom","marker_position","lod"';
-        if (peaks[0].length === 16) {
-            csvContent += ',"A","B","C","D","E","F","G","H"';
-        }
-        csvContent += '\n';
-        // [marker_id, chrom, position, gene_id, symbol, gene_chrom, gene_mid, lod
-        //     0         1       2        3       4         5          6        7
-        // ["1_100007442","1",100.0074,"ENSMUSG00000028028","Alpk1","3",127.7255,6.1147]
-        $.each(peaks, function (k, v) {
-            let line = `"${v[3]}","${v[4]}","${v[5]}",${v[6]},"${v[0]}","${v[1]}",${v[2]},${v[7]}`;
-            if (peaks[0].length === 16) {
-                line += `,${v[8]},${v[9]},${v[10]},${v[11]},${v[12]},${v[13]},${v[14]},${v[15]}`;
-            }
-            line += '\n';
-
-            csvContent += line;
-        });
-    } else if (global.currentDataset.datatype === 'protein') {
-        csvContent = '"protein_id","gene_id","symbol","gene_chrom","gene_mid","marker_id","marker_chrom","marker_position","lod"';
-        if (peaks[0].length === 17) {
-            csvContent += ',"A","B","C","D","E","F","G","H"';
-        }
-        csvContent += '\n';
-        // [marker_id, chrom, position, protein_id, gene_id, symbol, gene_chrom, gene_mid, lod
-        //     0         1       2          3          4        5         6        7        8
-        // ["1_106129060","1",106.12906,"ENSMUSP00000108356","ENSMUSG00000009907","Vps4b","1",106.7804,8.2928352859],
-        $.each(peaks, function (k, v) {
-            let line = `"${v[3]}","${v[4]}","${v[5]}","${v[6]}",${v[7]},"${v[0]}","${v[1]}",${v[2]},${v[8]}`;
-            if (peaks[0].length === 17) {
-                line += `,${v[9]},${v[10]},${v[11]},${v[12]},${v[13]},${v[14]},${v[15]},${v[16]}`;
-            }
-            line += '\n';
-            csvContent += line;
-        });
-    } else if (global.currentDataset.datatype === 'phos') {
-        csvContent = '"phos_id","protein_id","gene_id","symbol","gene_chrom","gene_mid","marker_id","marker_chrom","marker_position","lod"';
-        if (peaks[0].length === 18) {
-            csvContent += ',"A","B","C","D","E","F","G","H"';
-        }
-        csvContent += '\n';
-        // [marker_id, chrom, position, phos_id, protein_id, gene_id, symbol, gene_chrom, gene_mid, lod
-        //     0         1       2          3          4        5         6        7        8        9
-        // ["1_106129060","1",106.12906,"PHOS_ID","ENSMUSP00000108356","ENSMUSG00000009907","Vps4b","1",106.7804,8.2928352859],
-        $.each(peaks, function (k, v) {
-            let line = `"${v[3]}","${v[4]}","${v[5]}","${v[6]}","${v[7]}",${v[8]},"${v[0]}","${v[1]}",${v[2]},${v[9]}`;
-            if (peaks[0].length === 18) {
-                line += `,${v[10]},${v[11]},${v[12]},${v[13]},${v[14]},${v[15]},${v[16]},${v[17]}`;
-            }
-            line += '\n';
-            csvContent += line;
-        });
-    } else if (global.currentDataset.datatype === 'pheno') {
-        csvContent = '"marker_id","marker_chrom","marker_position","phenotype","lod"';
-        if (peaks[0].length === 15) {
-            csvContent += ',"A","B","C","D","E","F","G","H"';
-        }
-        csvContent += '\n';
-        // ["5_137006393","5",137.0064,"MEcyan","MEcyan","MEcyan",9.1161],[
-        //       0         1     2        3        4        5        6
-        $.each(peaks, function (k, v) {
-            let line = `"${v[0]}","${v[1]}",${v[2]},"${v[4]}",${v[6]}`;
-            if (peaks[0].length === 16) {
-                line += `,${v[7]},${v[8]},${v[9]},${v[10]},${v[11]},${v[12]},${v[13]},${v[14]}`;
-            }
-            line += '\n';
-            csvContent += line;
-        });
+    // Select headers based on the dataset type and check if additional columns are needed
+    csvContent += headers[datasetType];
+    if (peaks.length > 0 && peaks[0].length > headers[datasetType].split(',').length) {
+        csvContent += ',"A","B","C","D","E","F","G","H"';
     }
+    csvContent += '\n';
+
+    // Mapping the indices for structured data output based on dataset type
+    const indexMap = {
+        'mrna': [3, 4, 5, 6, 0, 1, 2, 7],
+        'protein': [3, 4, 5, 6, 7, 0, 1, 2, 8],
+        'phos': [3, 4, 5, 6, 7, 8, 0, 1, 2, 9],
+        'pheno': [0, 1, 2, 4, 6]
+    };
+
+    // Process each peak and form the CSV content
+    peaks.forEach(peak => {
+        let line = indexMap[datasetType].map(idx => idx < peak.length ? `"${peak[idx]}"` : peak[idx]).join(',');
+        if (peak.length > indexMap[datasetType].length) {
+            line += ',' + peak.slice(indexMap[datasetType].length).join(',');
+        }
+        csvContent += line + '\n';
+    });
 
     downloadCSV(csvContent, `${id}_LODPEAKS.csv`, 'text/csv;encoding:utf-8');
 }
 
-
+/**
+ * Calculates data for a visual legend based on provided elements, their colors, and a specified name.
+ * @param {string[]} elems - Array of legend element labels.
+ * @param {string[]} colors - Array of colors corresponding to each legend label.
+ * @param {string} name - The name of the legend.
+ * @returns {Object} An object representing the legend configuration for visualization.
+ */
 function calcLegend(elems, colors, name) {
-    let height = 12;
+    let height = 12; // Default height for one row
+    let xDomain = [0, 2]; // Default domain for x-axis
     let legendData = [];
-    let xDomain = [0, 2];
 
+    // Check if there is only one element, set simpler legend
     if (elems.length === 1) {
         xDomain = [0, 1];
         legendData.push({
-            "x": 1,
-            "y": 1,
-            "text": elems[0],
-            "color": colors[0]
+            x: 0.5, // Center the text for a single element
+            y: 1,
+            text: elems[0],
+            color: colors[0]
         });
     } else {
         height = Math.ceil(elems.length / 2) * 12;
-        elems = elems.reverse();
-        let g = 0;
-        for (let i = elems.length - 1; i >= 0; i--) {
-            let x = g % 2;
-            let y = ((elems.length % 2) === 1) ? Math.ceil(i / 2) : Math.floor(i / 2);
-            let d = {
-                "x": x,
-                "y": y,
-                "text": elems[i],
-                "color": colors[g]
-            };
-            legendData.push(d);
-            g++;
+        for (let i = 0; i < elems.length; i++) {
+            let x = i % 2; // Column 0 or 1
+            let y = Math.floor(i / 2); // Row index based on current element index
+            legendData.push({
+                x: x,
+                y: y,
+                text: elems[i],
+                color: colors[i]
+            });
         }
     }
 
-    let legend =
-    {
-        "name": name,
-        "height": height,
-        "data": {
-            "values": legendData
-        },
-        "mark": {
-            "type": "text",
-            "align": "left",
-
-            "tooltip": {
-                "handler": "nullHandler"
-            },
-        },
-        "encoding": {
-            "x": { "axis": null, "title": null, "field": "x", "type": "quantitative", "scale": { "domain": xDomain } },
-            "y": { "axis": null, "title": null, "field": "y", "type": "quantitative" },
-            "color": {
-                "field": "color",
-                "type": "nominal",
-                "scale": {
-                    "domain": elems,
-                    "range": colors,
-                }
-            },
-            "text": { "field": "text", "type": "nominal" },
-            "size": { "value": 11 }
+    let legend = {
+        name: name,
+        height: height,
+        data: { values: legendData },
+        mark: { type: "text", align: "left", tooltip: { handler: "nullHandler" } },
+        encoding: {
+            x: { field: "x", type: "quantitative", scale: { domain: xDomain }, axis: null, title: null },
+            y: { field: "y", type: "quantitative", axis: null, title: null },
+            color: { field: "color", type: "nominal", scale: { domain: elems, range: colors } },
+            text: { field: "text", type: "nominal" },
+            size: { value: 11 }
         }
     };
 
     return legend;
-
 }
 
 /**
@@ -623,111 +572,94 @@ function plotLODPeaks() {
     });
 }
 
+/**
+ * Generates HTML for the LOD Peaks interface and handles UI events to update the display based on user interaction.
+ */
 function generateLODPeaksHTML() {
     logDebug('generateLODPeaksHTML()');
 
     if (isEmpty(global.currentDataset.lodpeaks)) {
-        logDebug('lodspeaks is null, returning');
+        logDebug('LOD peaks data is null, returning');
         return;
     }
 
     let covar = $('#interactiveCovarPeaks').val();
-    logDebug('covar=', covar);
+    logDebug('Covariate:', covar);
 
-
-    let minLOD = Infinity;
-    let maxLOD = -Infinity;
-    let html = `<div class="row">
-                    <div class="col">
-                        <div id="plotLodPeaks" style="width: 100%"></div>
-                    </div>
-                </div>`;
-
-
-    if ((global.currentDataset.datatype === 'mrna') ||
-        (global.currentDataset.datatype === 'protein') ||
-        (global.currentDataset.datatype === 'phos')) {
-        // mrna
-        // [marker_id, chrom, position, gene_id, symbol, gene_chrom, gene_mid, lod
-        // ["1_100007442","1",100.0074,"ENSMUSG00000028028","Alpk1","3",127.7255,6.1147]
-        // protein
-        // [marker_id, chrom, position, protein_id, gene_id, symbol, gene_chrom, gene_mid, lod
-        // ["1_106129060","1",106.12906,"ENSMUSP00000108356","ENSMUSG00000009907","Vps4b","1",106.7804,8.2928352859],
-        // phos
-        // [marker_id, chrom, position, phos_id, protein_id, gene_id, symbol, gene_chrom, gene_mid, lod
-        // ["1_106129060","1",106.12906,"PHOSID","ENSMUSP00000108356","ENSMUSG00000009907","Vps4b","1",106.7804,8.2928352859],
-
-        let idxLODPos = 7;
-
-        if (global.currentDataset.datatype === 'protein') {
-            idxLODPos = 8;
-        } else if (global.currentDataset.datatype === 'phos') {
-            idxLODPos = 9;
-        }
-
-        let lods = global.currentDataset.lodpeaks[covar];
-
-        // a.reduce((a,b)=>a.size>b.size?a:b).size;
-        minLOD = lods.reduce((a, b) => a[idxLODPos] < b[idxLODPos] ? a : b)[idxLODPos];
-        maxLOD = lods.reduce((a, b) => a[idxLODPos] > b[idxLODPos] ? a : b)[idxLODPos];
-
-        minLOD = Math.max(0, Math.floor(minLOD) - 1);
-        maxLOD = Math.ceil(maxLOD) + 1;
-
-        logDebug('minLOD=', minLOD, 'maxLOD=', maxLOD);
-
-        html = html + `
-            <div class="row">
-                <div class="col-sm-auto my-auto margin y auto font-weight-bold">
-                    <span class="align-bottom">LOD Threshold: </span>
-                </div>
-                <div class="col-auto">
-                    <div class="input-group">
-                        <input id="lodSliderValue" type="number" min="${minLOD}" max="${maxLOD}" step=".5" value="${minLOD}" class="form-control" size="6">
-                        <span class="input-group-append">
-                            <button id="btnGoLOD" class="btn btn-primary"><i class="fas fa-caret-right"></i></button>
-                        </span>
-                    </div>
-                </div>
-            </div>
-            <div class="row justify-content-center">
-                <div class="col text-right">
-                    <span>${minLOD}</span>
-                </div>
-                <div class="col-8">
-                    <input type="range" class="custom-range" value="${minLOD}" min="${minLOD}" max="${maxLOD}" id="lodRange">
-                </div>
-                <div class="col text-left">
-                    <span>${maxLOD}</span>
-                </div>
-            </div>
-        `;
-
-
+    let html = '<div class="row"><div class="col"><div id="plotLodPeaks" style="width: 100%"></div></div></div>';
+    if (!['mrna', 'protein', 'phos'].includes(global.currentDataset.datatype)) {
         $('#divLODPeaks').html(html);
-
-        $('#lodRange').on('change', function (evt) {
-            $('#lodSliderValue').val(evt.target.value);
-            plotLODPeaks(global.currentDataset.lodpeaks[covar], evt.target.value);
-        });
-
-        $('#btnGoLOD').click(function (evt) {
-            $('#lodRange').val(+$('#lodSliderValue').val());
-            plotLODPeaks(global.currentDataset.lodpeaks[covar], +$('#lodSliderValue').val());
-        });
-
-
-        $('#lodSliderValue').bind('keyup input', function (evt) {
-            $('#lodRange').val(+$('#lodSliderValue').val());
-            plotLODPeaks(global.currentDataset.lodpeaks[covar], +$('#lodSliderValue').val());
-        });
-    } else {
-        $('#divLODPeaks').html(html);
+        return;
     }
+
+    const lodPosition = {
+        'mrna': 7,
+        'protein': 8,
+        'phos': 9
+    };
+
+    let idxLODPos = lodPosition[global.currentDataset.datatype];
+    let lods = global.currentDataset.lodpeaks[covar];
+    let minLOD = lods.reduce((min, current) => Math.min(min, current[idxLODPos]), Infinity);
+    let maxLOD = lods.reduce((max, current) => Math.max(max, current[idxLODPos]), -Infinity);
+
+    minLOD = Math.max(0, Math.floor(minLOD) - 1);
+    maxLOD = Math.ceil(maxLOD) + 1;
+    logDebug('minLOD:', minLOD, 'maxLOD:', maxLOD);
+
+    html += `
+        <div class="row">
+            <div class="col-sm-auto my-auto margin y auto font-weight-bold">
+                <span class="align-bottom">LOD Threshold:</span>
+            </div>
+            <div class="col-auto">
+                <div class="input-group">
+                    <input id="lodSliderValue" type="number" min="${minLOD}" max="${maxLOD}" step=".5" value="${minLOD}" class="form-control" size="6">
+                    <span class="input-group-append">
+                        <button id="btnGoLOD" class="btn btn-primary"><i class="fas fa-caret-right"></i></button>
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="row justify-content-center">
+            <div class="col text-right">
+                <span>${minLOD}</span>
+            </div>
+            <div class="col-8">
+                <input type="range" class="custom-range" value="${minLOD}" min="${minLOD}" max="${maxLOD}" id="lodRange">
+            </div>
+            <div class="col text-left">
+                <span>${maxLOD}</span>
+            </div>
+        </div>
+    `;
+
+    $('#divLODPeaks').html(html);
+
+    $('#lodRange').on('change', () => syncSliderWithValue());
+    $('#btnGoLOD').on('click', () => syncSliderWithValue());
+    $('#lodSliderValue').on('input', () => syncSliderWithValue());
 
     plotLODPeaks(global.currentDataset.lodpeaks[covar], maxLOD);
 }
 
+/**
+ * Synchronizes the slider value with the input field and updates the LOD peaks plot.
+ * @param {string} covariate - The covariate value to determine which dataset to plot.
+ */
+function syncSliderWithValue(covariate) {
+    let value = parseFloat($('#lodSliderValue').val()); // Ensures the value is a float
+    $('#lodRange').val(value);
+    plotLODPeaks(global.currentDataset.lodpeaks[covariate], value);
+}
+
+/**
+ * Asynchronously generates tooltip content for gene-related LOD peaks data.
+ * @param {Object} datum - Data object containing gene and LOD peak details.
+ * @param {Object} mark - The visual representation of the data in the visualization (unused but required for interface consistency).
+ * @param {Object} props - Additional properties related to the data point (unused but required for interface consistency).
+ * @returns {Promise<string>} HTML content for the tooltip, correctly handled as HTML.
+ */
 async function lodPeakGeneTooltipHandler(datum, mark, props) {
     logDebug(datum, mark, props);
     let AH = '';
@@ -783,8 +715,16 @@ async function lodPeakGeneTooltipHandler(datum, mark, props) {
         </p>`;
 }
 
+/**
+ * Asynchronously generates tooltip content for phenotype-related LOD peaks data.
+ * @param {Object} datum - Data object containing phenotype and LOD peak details.
+ * @param {Object} mark - The visual representation of the data in the visualization (unused but required for interface consistency).
+ * @param {Object} props - Additional properties related to the data point (unused but required for interface consistency).
+ * @returns {Promise<string>} HTML content for the tooltip.
+ */
 async function lodPeakPhenotypeTooltipHandler(datum, mark, props) {
-    logDebug(datum);
+    logDebug('Phenotype tooltip handler:', datum);
+
     return genomeSpyEmbed.html`
         <div class="title">
             <strong>${datum.lod}</strong>
@@ -797,6 +737,5 @@ async function lodPeakPhenotypeTooltipHandler(datum, mark, props) {
             <strong>Category</strong> ${datum.phenoCategory}
             <br/>
             <strong>Marker Position</strong> ${datum.markerChr}:${datum.markerPos.toLocaleString()}
-        </p>
-    `;
+        </p>`;
 }
