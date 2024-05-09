@@ -1,20 +1,17 @@
 /**
-         * Perform gene search.
-         */
+ * Perform gene search and handle the UI state accordingly.
+ * @param {string} searchVal - The search string input by the user.
+ */
 function findGene(searchVal) {
-    //let button = $('#btnGo');
     let term = $('#searchTerm');
-    term.disable(true);
-    //button.button('loading');
+    term.prop('disabled', true);
 
-    if (searchVal.length === 0) {
-        term.focus();
-        term.disable(false);
-        //button.button('reset');
+    if (!searchVal) {
+        term.focus().prop('disabled', false);
         return;
     }
 
-    let options = {
+    const options = {
         species: global.currentDataset.ensembl_species,
         release: global.currentDataset.ensembl_release,
         limit: 100,
@@ -22,198 +19,120 @@ function findGene(searchVal) {
     };
 
     logDebug(options);
-
     startTask();
     global.ENSIMPL.search(searchVal, options, searchCallback);
 }
 
+
 /**
- * Populate the search results.
+ * Processes the search callback by populating the search results based on the response.
+ * If no matches are found, the function will reset the UI and show a message.
  */
 function searchCallback() {
     logDebug(global.ENSIMPL);
 
-    if (global.ENSIMPL.response.result.matches === null) {
-        $('#searchResultsDiv').html('');
+    if (!global.ENSIMPL.response.result.matches) {
+        $('#searchResultsDiv').empty();
         $('#btnGo').button('reset');
-        $('#searchTerm').disable(false);
-        $('#searchResultsTableInfo').html('No results found');
+        $('#searchTerm').prop('disabled', false);
+        $('#searchResultsTableInfo').text('No results found');
         stopTask();
         return;
     }
 
-    let response = global.ENSIMPL.response;
-    let currentDataSet = global.currentDataset;
-    let searchResults = [];
-    let searchResultsObj = {};
+    const response = global.ENSIMPL.response;
+    const currentDataSet = global.currentDataset;
+    const searchResults = [];
 
+    response.result.matches.forEach(match => {
+        match.match = currentDataSet.gene_ids.hasOwnProperty(match.ensembl_gene_id);
+        match.datatype = currentDataSet.datatype;
 
-    $.each(response.result.matches, function(idx, match) {
-
-        match['match'] = match.ensembl_gene_id in currentDataSet.gene_ids;
-        match['datatype'] = currentDataSet.datatype;
-
-        if ((currentDataSet.datatype === 'protein') && (match.match)) {
-            match['protein_ids'] = currentDataSet.gene_ids[match.ensembl_gene_id].protein_ids;
-        } else if ((currentDataSet.datatype === 'phos')  && (match.match)) {
-            match['protein_ids'] = currentDataSet.gene_ids[match.ensembl_gene_id].protein_ids;
+        if (match.match) {
+            match.protein_ids = currentDataSet.gene_ids[match.ensembl_gene_id].protein_ids;
         }
 
         searchResults.push(match);
-        searchResultsObj[match.ensembl_gene_id] = match;
     });
 
-    // build the results table
-    $('#searchResultsDiv').html(`<table id="searchResultsTable" class="table table-striped table-hover table-sm table-bordered" style="font-size:0.85rem">
-                                <thead>
-<th data-dynatable-no-sort></th>
-                                    <th data-dynatable-sorts="ID">ID</th>
-<th >Symbol</th>
-<!--
-                                    <th style="display: none">category</th>
-                                    <th style="display: none">desc</th>
-//--->
-                                </thead>
-                                <tbody>
-                                </tbody>
-                            </table>`);
-
-    $('#searchResultsTable')
-        .dynatable({
-            dataset: {
-                records: searchResults,
-            },
-            features: {
-                paginate: false,
-                pushState: false,
-                recordCount: true,
-                sort: false,
-                search: false,
-            },
-            inputs: {
-                recordCountPlacement: 'before',
-            },
-            writers: {
-                _rowWriter: function(rowIndex, record, columns, cellWriter) {
-                    let html = `<tr><td><i id="matchInfo" geneID="${record.ensembl_gene_id}" class="fas fa-info-circle"></i></td>`;
-
-                    if (record.datatype === 'mrna') {
-                        if (record.match) {
-                            html += `<td><span><a href="#" geneID="${record.ensembl_gene_id}">${record.ensembl_gene_id}</a></span></td>`;
-                        } else {
-                            html += `<td><span>${record.ensembl_gene_id}</span></td>`;
-                        }
-
-                    } else if (record.datatype === 'protein') {
-                        html += `<td style="white-space: nowrap;"><span>${record.ensembl_gene_id}</span>`;
-
-                        if (record.match) {
-                            html += '<br/>';
-                            let proteins = [];
-                            for (let p in record.protein_ids) {
-                                proteins.push(`<span style="padding-left: 5px;"><i class="fa-solid fa-turn-up fa-rotate-90"></i> <a href="#" geneID="${record.ensembl_gene_id}" proteinID="${record.protein_ids[p]}">${record.protein_ids[p]}</a></span>`);
-                            }
-                            html += proteins.join('<br/>');
-                        }
-
-                        html += '</td>';
-                    } else if (record.datatype === 'phos') {
-                        html += `<td style="white-space: nowrap;"><span>${record.ensembl_gene_id}</span>`;
-
-                        if (record.match) {
-                            html += '<br/>';
-                            let proteins = [];
-                            for (let p in record.protein_ids) {
-                                let protein_id = record.protein_ids[p];
-
-                                let phos = [];
-                                for (let j in currentDataSet.protein_ids[protein_id]?.phos_ids) {
-                                    let ph = currentDataSet.protein_ids[protein_id].phos_ids[j];
-                                    let ph_id = ph.split('_')[1];
-                                    phos.push(`<span style="padding-left: 25px;"><i class="fa-solid fa-turn-up fa-rotate-90"></i> <a href="#" geneID="${record.ensembl_gene_id}" proteinID="${protein_id}" phosID="${ph}">${ph_id}</a>`);
-                                }
-
-                                proteins.push(`<span style="padding-left: 5px;"><i class="fa-solid fa-turn-up fa-rotate-90"></i> ${protein_id}</span><br/>` + phos.join('<br/>'));
-                            }
-                            html += proteins.join('<br/>');
-                        }
-
-
-
-                        html += '</td>';
-                    }
-
-                    html += `<td>${record.symbol}</td></tr>`;
-
-                    return html;
-                }
-            },
-        }).data('dynatable');
-
-
-    $('#searchResultsTable a').on('click', function (evt) {
-        let that = $(this);
-        evt.preventDefault();
-        selectGeneProtein(that.attr('geneid'), that.attr('proteinid'), that.attr('phosid'), global.datasetID, $('#interactiveCovarLODS').val());
-        return false;
-    });
-
-    setTimeout(function () {
-        $('[id="matchInfo"]').each(function (idx, elem) {
-            $(this).popover({
-                placement: 'right',
-                html: true,
-                trigger: 'hover',
-                container: 'body',
-                sanitize: false,
-                content: function () {
-
-                    let d = searchResultsObj[this.getAttribute('geneid')];
-
-
-                    let h = `<table class="table table-sm">
-                                <tr><td><strong>Symbol</strong> </td><td>${d.symbol}</td></tr>
-                                <tr><td><strong>Location</strong> </td><td>${d.chromosome}:${d.position_start.toLocaleString()}-${d.position_end.toLocaleString()}</td></tr>
-                                <tr><td><strong>Name</strong> </td><td>${d.name}</td></tr>
-                                <tr><td><strong>Synonyms</strong> </td><td>`;
-
-                    let s = d.synonyms;
-                    if (s) {
-                        if (s.length > 5) {
-                            let s2 = s.slice(1, 6);
-                            h += s2.join('<br>');
-                            h += '<br><i>(' + (s.length - s2.length) + ' more synonyms)</i>';
-                        } else {
-                            h += s.join('<br>');
-                        }
-                    }
-                    h += `</td></tr>
-                          <tr><td><strong>Match Reason</strong> </td><td>${d.match_reason}</td></tr>
-                          <tr><td><strong>Match Value</strong> </td><td>${d.match_value}</td></tr>
-                          </table>`;
-
-                    return h;
-                }
-            });
-        });
-
-    });
-    $('#btnGo').button('reset');
-    $('#searchTerm').disable(false);
-
+    // build and update the results table
+    const tableHtml = generateResultsTableHtml(searchResults);
+    $('#searchResultsDiv').html(tableHtml);
+    attachTableEvents(); // Handles events such as clicks on table rows
     stopTask();
 
-    // simulate a click event if the search yields only 1 result
-    if ($('#searchResultsTable a').length === 1) {
-        $('#searchResultsTable a')[0].click();
+    // Handling special case: if only one result, simulate click
+    if (searchResults.length === 1) {
+        $('#searchResultsTable a').first().click();
     }
 
+    initializeDataTable();
+}
+
+/**
+ * Generates the HTML for the results table based on the search results.
+ * This function maps over each record in the search results to create table rows.
+ * @param {Array} searchResults - The array of search result objects.
+ * @returns {string} A string containing the HTML representation of the results table.
+ */
+function generateResultsTableHtml(searchResults) {
+    return `<table id="searchResultsTable" class="table table-striped table-hover table-sm table-bordered" style="font-size:0.85rem">
+                <thead>
+                    <th data-dynatable-no-sort></th>
+                    <th data-dynatable-sorts="ID">ID</th>
+                    <th>Symbol</th>
+                </thead>
+                <tbody>
+                    ${searchResults.map(record => generateRowHtml(record)).join('')}
+                </tbody>
+            </table>`;
+}
+
+/**
+ * Generates the HTML for a single row in the results table based on a record.
+ * This function checks if there is a match for the record and adjusts the HTML content accordingly.
+ * @param {Object} record - The individual search result record, containing necessary data like gene ID and symbol.
+ * @returns {string} A string containing the HTML for one row of the results table.
+ */
+function generateRowHtml(record) {
+    let rowHtml = `<tr><td><i id="matchInfo" geneID="${record.ensembl_gene_id}" class="fas fa-info-circle"></i></td>`;
+
+    if (record.match) {
+        rowHtml += `<td><span><a href="#" geneID="${record.ensembl_gene_id}">${record.ensembl_gene_id}</a></span></td>`;
+    } else {
+        rowHtml += `<td><span>${record.ensembl_gene_id}</span></td>`;
+    }
+
+    rowHtml += `<td>${record.symbol}</td></tr>`;
+    return rowHtml;
+}
+
+/**
+ * Attaches click event handlers to links in the results table.
+ * When a link is clicked, it prevents the default action and triggers a custom function to handle gene, protein, or phosphorylation ID selection.
+ * This setup facilitates interaction with the search results.
+ */
+function attachTableEvents() {
+    $('#searchResultsTable a').on('click', function (evt) {
+        evt.preventDefault();
+        const { geneid, proteinid, phosid } = $(this).data();
+        selectGeneProtein(geneid, proteinid, phosid, global.datasetID, $('#interactiveCovarLODS').val());
+        return false;
+    });
+}
+
+/**
+ * Initializes a DataTable for the search results table.
+ * This configuration disables various default features like pagination and filtering to suit specific requirements.
+ * The table is designed to handle a potentially large number of entries without performance issues, using a fixed scroll area.
+ */
+function initializeDataTable() {
     $('#searchResultsTable').DataTable({
-        "info": false,
-        "filter": false,
-        "scrollY": "300px",
-        "false": true,
-        "order": [],
-        "paging": false,
+        info: false,
+        filter: false,
+        scrollY: "300px",
+        false: true,
+        order: [],
+        paging: false
     });
 }
