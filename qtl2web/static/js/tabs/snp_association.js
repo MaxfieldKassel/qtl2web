@@ -901,3 +901,83 @@ function parseCSQ(strCSQ) {
 
     return Array.from(consequences).join(', ');
 }
+
+const debouncedFetchEnsimplSummary = debounce(fetchEnsimplSummary, 500);
+
+
+/**
+ * Debounces fetch requests to reduce the frequency of server calls when retrieving Ensimpl summaries.
+ * @param {string} ensemblID - The Ensembl ID for which the summary needs to be fetched.
+ * @returns {Function} A debounced function that fetches the Ensimpl summary.
+ */
+function debouncedFetchEnsimplSummary(ensemblID) {
+    return debounced(ensemblID);
+}
+
+
+/**
+ * Creates a debounced version of a function that delays invoking `func` until after `wait` milliseconds
+ * have elapsed since the last time the debounced function was invoked.
+ * @param {Function} func - The function to debounce.
+ * @param {number} wait - The number of milliseconds to delay.
+ * @param {boolean} rejectOnDebounce - If true, rejects the promise on a subsequent call during the wait time.
+ * @returns {Function} A new debounced function.
+ */
+function debounce(func, wait, rejectOnDebounce = true) {
+    let timeout;
+    let rejectPrevious = _ => undefined;
+
+    return function debouncer(...args) {
+        return new Promise((resolve, reject) => {
+            const later = () => {
+                clearTimeout(timeout);
+                rejectPrevious = _ => undefined;
+                resolve(func(...args));
+            };
+
+            if (rejectOnDebounce) {
+                rejectPrevious("debounced");
+            }
+            clearTimeout(timeout);
+            rejectPrevious = reject;
+            timeout = setTimeout(later, wait);
+        });
+    };
+}
+
+/**
+ * Asynchronously fetches the Ensimpl summary for a given Ensembl ID.
+ * @param {string} ensemblID - The Ensembl ID to fetch the summary for.
+ * @returns {Promise<Object|null>} A promise resolving to the gene summary or null if an error occurs.
+ */
+async function fetchEnsimplSummary(ensemblID) {
+    logDebug("Searching: " + ensemblID);
+    const ensembl = global.currentDataset.ensembl_version;
+    const opts = {};
+
+    try {
+        const response = await fetch(`https://${apiURL}/api/gene/${ensemblID}?species=Mm&release=${ensembl}`, opts);
+        const searchResult = await response.json();
+        if ('message' in searchResult) {
+            throw new Error(searchResult.message);
+        }
+        return searchResult['gene'][ensemblID];
+    } catch (error) {
+        logError(`Fetching gene summary failed: ${error.message}`);
+        return null;
+    }
+}
+
+/**
+ * Exports SNP association data as a CSV file.
+ * @param {string} id - Identifier for the dataset.
+ * @param {Array} snps - Array of SNP objects containing id, chromosome (chr), position (pos), alleles, consequence (csq), and LOD score.
+ * @param {Array} genes - (Unused) Array of gene data, potentially for future use.
+ */
+function exportSNPAssocData(id, snps, genes) {
+    const header = `"id","chr","position","alleles","csq","lod"\n`;
+    const rows = snps.map(snp => `"${snp.id}","${snp.chr}",${snp.pos},"${snp.alleles}","${snp.csq}",${snp.lod}`).join('\n');
+    const csvContent = header + rows;
+
+    downloadCSV(csvContent, `${id}_SNPASSOC.csv`, 'text/csv;encoding:utf-8');
+}
