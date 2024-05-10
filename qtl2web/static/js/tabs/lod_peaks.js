@@ -558,6 +558,8 @@ function plotLODPeaks() {
 
                 if ('geneID' in datum) {
                     logDebug('lodPeak clicked on', datum);
+                    global.geneSymbol = datum.geneSymbol;
+                    logDebug('Gene Symbol:', global.geneSymbol);
                     logDebug(datum.geneID, datum.proteinID, global.datasetID, covar);
                     selectGeneProtein(datum.geneID, datum.proteinID, datum.phosID, global.datasetID, covar);
                 } else if ('phenoDataName' in datum) {

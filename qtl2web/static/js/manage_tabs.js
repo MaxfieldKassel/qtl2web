@@ -45,7 +45,10 @@ function updateGeneSelect(groupID, submitData, geneID, proteinID, phosID, datase
                         let errorMessages = '';
                         $.each(data.response_data, function (key, value) {
                             if (value.status_code !== 200) {
-                                errorMessages += (`<strong>${key}:</strong> ${value.response.error}<br>`);
+                                //ignore geneData 404 error
+                                if (key !== 'geneData' || value.status_code !== 404) { 
+                                    errorMessages += (`<strong>${key}:</strong> ${value.response.error}<br>`);
+                                }
                             }
                         });
 
@@ -57,8 +60,12 @@ function updateGeneSelect(groupID, submitData, geneID, proteinID, phosID, datase
                             // show result, there will be 3 datasets to get
 
                             // 1. gene information
-                            global.gene = data.response_data.geneData.response;
-                            displayGeneData(global.gene.gene);
+                            if (data.response_data.geneData.status_code === 200) {
+                                global.geneSymbol = data.response_data.geneData.response;
+                                displayGeneData(data.response_data.geneData.response.gene);
+                            } else {    
+                                displayGeneData(null);
+                            }
 
                             // 2. LOD score information
                             if (covar === 'additive') {
@@ -135,7 +142,7 @@ function selectPhenotype(phenotypeID, datasetID, covar) {
     let urlCorrelation = `${rBaseURL}/correlation?dataset=${datasetID}&id=${phenotypeID}`;
 
     // TODO: make reset function
-    global.gene = null;
+    global.geneSymbol = null;
     global.geneID = null;
     global.proteinID = null;
     global.phosID = null;
@@ -360,7 +367,6 @@ function selectGeneProtein(geneID, proteinID, phosID, datasetID, covar) {
     let urlLODCovar = `${rBaseURL}/lodscan?dataset=${datasetID}&id=`;
     let urlCorrelation = `${rBaseURL}/correlation?dataset=${datasetID}&id=`;
 
-    global.gene = null;
     global.geneID = geneID;
     global.proteinID = proteinID;
     global.phosID = phosID;

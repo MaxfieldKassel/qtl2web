@@ -58,10 +58,10 @@ function plotLODChart(dataLOD, covar, dataDiff) {
 
         if (global.currentDataset.datatype === 'mrna') {
             currentID = global.geneID;
-            xAxisTitle = global.geneID + ' (' + global.gene.gene[global.geneID].symbol + ')';
+            xAxisTitle = global.geneID + ' (' + global.geneSymbol + ')';
         } else if (global.currentDataset.datatype === 'protein') {
             currentID = global.proteinID;
-            xAxisTitle = global.proteinID + ' (' + global.gene.gene[global.geneID].symbol + ')';
+            xAxisTitle = global.proteinID + ' (' + global.geneSymbol + ')';
         } else if (global.currentDataset.datatype === 'phos') {
             currentID = global.phosID;
             xAxisTitle = global.phosID;

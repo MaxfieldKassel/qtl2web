@@ -16,10 +16,10 @@ function plotSNPAssoc(snpData, geneRanking, geneInfo, id, chromosome, location, 
     let currentID = '';
 
     if (global.currentDataset.datatype === 'mrna') {
-        plotTitle = `${global.geneID} (${global.gene.gene[global.geneID].symbol})`;
+        plotTitle = `${global.geneID} (${global.geneSymbol})`;
         currentID = global.geneID;
     } else if (global.currentDataset.datatype === 'protein') {
-        plotTitle = `${global.proteinID} (${global.gene.gene[global.geneID].symbol})`;
+        plotTitle = `${global.proteinID} (${global.geneSymbol})`;
         currentID = global.proteinID;
     } else if (global.currentDataset.datatype === 'phos') {
         plotTitle = global.phosID;

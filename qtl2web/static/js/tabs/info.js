@@ -3,6 +3,13 @@
  * @param {Object} geneData - gene information
  */
  function displayGeneData(geneDataMap) {
+    if (!geneDataMap) {
+        logError(`Gene data not found in the dataset.`);
+        $('#div_current_item_information_header').html('Error: Gene not found');
+        $('#div_current_item_information_body').html('The requested gene information is unavailable.');
+        return;
+    }
+    
     let geneData = geneDataMap[Object.keys(geneDataMap)[0]];
     let htmlHeader = `${geneData.id} <em>${geneData.symbol}</em>`;
     let htmlBody = `<table class="table table-sm">
