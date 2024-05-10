@@ -573,48 +573,48 @@ function plotLODPeaks() {
 }
 
 /**
- * Generates HTML for the LOD Peaks interface and handles UI events to update the display based on user interaction.
+ * Generates and updates HTML for the LOD Peaks interface based on the current dataset.
+ * Handles UI events to update the display in response to user interactions.
  */
 function generateLODPeaksHTML() {
     logDebug('generateLODPeaksHTML()');
 
-    if (isEmpty(global.currentDataset.lodpeaks)) {
+    const dataset = global.currentDataset;
+    if (isEmpty(dataset.lodpeaks)) {
         logDebug('LOD peaks data is null, returning');
         return;
     }
 
-    let covar = $('#interactiveCovarPeaks').val();
+    const covar = $('#interactiveCovarPeaks').val();
     logDebug('Covariate:', covar);
 
-    let html = '<div class="row"><div class="col"><div id="plotLodPeaks" style="width: 100%"></div></div></div>';
-    if (!['mrna', 'protein', 'phos'].includes(global.currentDataset.datatype)) {
-        $('#divLODPeaks').html(html);
+    let html = '<div class="row"><div class="col"><div id="plotLodPeaks" style="width: 100%;"></div></div></div>';
+    const divLODPeaks = $('#divLODPeaks');  // Cache the jQuery object for efficiency
+
+    if (!['mrna', 'protein', 'phos'].includes(dataset.datatype)) {
+        divLODPeaks.html(html);
         return;
     }
 
-    const lodPosition = {
-        'mrna': 7,
-        'protein': 8,
-        'phos': 9
-    };
+    const lodPosition = { 'mrna': 7, 'protein': 8, 'phos': 9 };
+    const idxLODPos = lodPosition[dataset.datatype];
+    const lods = dataset.lodpeaks[covar];
 
-    let idxLODPos = lodPosition[global.currentDataset.datatype];
-    let lods = global.currentDataset.lodpeaks[covar];
     let minLOD = lods.reduce((min, current) => Math.min(min, current[idxLODPos]), Infinity);
     let maxLOD = lods.reduce((max, current) => Math.max(max, current[idxLODPos]), -Infinity);
-
     minLOD = Math.max(0, Math.floor(minLOD) - 1);
     maxLOD = Math.ceil(maxLOD) + 1;
+
     logDebug('minLOD:', minLOD, 'maxLOD:', maxLOD);
 
     html += `
         <div class="row">
-            <div class="col-sm-auto my-auto margin y auto font-weight-bold">
+            <div class="col-sm-auto my-auto margin y-auto font-weight-bold">
                 <span class="align-bottom">LOD Threshold:</span>
             </div>
             <div class="col-auto">
                 <div class="input-group">
-                    <input id="lodSliderValue" type="number" min="${minLOD}" max="${maxLOD}" step=".5" value="${minLOD}" class="form-control" size="6">
+                    <input id="lodSliderValue" type="number" min="${minLOD}" max="${maxLOD}" step="0.5" value="${minLOD}" class="form-control" size="6">
                     <span class="input-group-append">
                         <button id="btnGoLOD" class="btn btn-primary"><i class="fas fa-caret-right"></i></button>
                     </span>
@@ -634,23 +634,16 @@ function generateLODPeaksHTML() {
         </div>
     `;
 
-    $('#divLODPeaks').html(html);
+    divLODPeaks.html(html);
 
-    $('#lodRange').on('change', () => syncSliderWithValue());
-    $('#btnGoLOD').on('click', () => syncSliderWithValue());
-    $('#lodSliderValue').on('input', () => syncSliderWithValue());
+    $('#lodRange, #lodSliderValue').on('change input', function () {
+        const newValue = this.value;  
+        $('#lodSliderValue').val(newValue);
+        $('#lodRange').val(newValue);
+        plotLODPeaks(lods, newValue);
+    });
 
-    plotLODPeaks(global.currentDataset.lodpeaks[covar], maxLOD);
-}
-
-/**
- * Synchronizes the slider value with the input field and updates the LOD peaks plot.
- * @param {string} covariate - The covariate value to determine which dataset to plot.
- */
-function syncSliderWithValue(covariate) {
-    let value = parseFloat($('#lodSliderValue').val()); // Ensures the value is a float
-    $('#lodRange').val(value);
-    plotLODPeaks(global.currentDataset.lodpeaks[covariate], value);
+    plotLODPeaks(lods, maxLOD);
 }
 
 /**
