@@ -59,10 +59,6 @@ function updateGeneSelect(groupID, submitData, geneID, proteinID, phosID, datase
                             // 1. gene information
                             global.gene = data.response_data.geneData.response;
                             displayGeneData(global.gene.gene);
-                            let geneData = null;
-                            for (let key in global.gene.gene) {
-                                geneData = global.gene.gene[key];
-                            }
 
                             // 2. LOD score information
                             if (covar === 'additive') {
@@ -73,12 +69,12 @@ function updateGeneSelect(groupID, submitData, geneID, proteinID, phosID, datase
                                 global.LODChartData[covar] = data.response_data.lodCovar.response.result;
 
                                 plotLODChart(data.response_data.lodCovar.response.result,
-                                             covar,
-                                             null);
+                                    covar,
+                                    null);
 
                                 plotLODChart(data.response_data.lodCovar.response.result,
-                                             covar,
-                                             data.response_data.lod.response.result);
+                                    covar,
+                                    data.response_data.lod.response.result);
                             }
 
                             $('#interactiveCovarLODS').selectpicker('val', covar);
@@ -152,7 +148,7 @@ function selectPhenotype(phenotypeID, datasetID, covar) {
     // reset the covariate pickers
     configureCovarInfo(false);
 
-    $.each(global.interactiveCovariates, function(idx, value) {
+    $.each(global.interactiveCovariates, function (idx, value) {
         global.LODChartData[value['column.name']] = null;
     });
 
@@ -175,7 +171,7 @@ function selectPhenotype(phenotypeID, datasetID, covar) {
     }
 
     let submitData = {
-        urls:[{
+        urls: [{
             url_id: 'expression',
             url: urlExpression
         }, {
@@ -226,7 +222,7 @@ function selectPhenotype(phenotypeID, datasetID, covar) {
         data: JSON.stringify(submitData),
         retries: 3,
         retryInterval: 1000,
-        success: function(data, status, request) {
+        success: function (data, status, request) {
             global.runningTask = true;
             logDebug('data=', data);
             logDebug('status=', status);
@@ -236,7 +232,7 @@ function selectPhenotype(phenotypeID, datasetID, covar) {
             logDebug('data.group_id=', data.group_id);
             updatePhenotypeSelect(data.group_id, datasetID, covar);
         },
-        error: function(jqXHR, textStatus, errorThrown) {
+        error: function (jqXHR, textStatus, errorThrown) {
             showErrorMessage(errorThrown, textStatus);
         }
     });
@@ -302,12 +298,12 @@ function updatePhenotypeSelect(groupID, datasetID, covar) {
                                 global.LODChartData[covar] = data.response_data.lodCovar.response.result;
 
                                 plotLODChart(data.response_data.lodCovar.response.result,
-                                             covar,
-                                             null);
+                                    covar,
+                                    null);
 
                                 plotLODChart(data.response_data.lodCovar.response.result,
-                                             covar,
-                                             data.response_data.lod.response.result);
+                                    covar,
+                                    data.response_data.lod.response.result);
                             }
 
                             $('#interactiveCovarLODS').selectpicker('val', covar);
@@ -376,7 +372,7 @@ function selectGeneProtein(geneID, proteinID, phosID, datasetID, covar) {
 
     //$('#factorSeriesCorrelation').selectpicker();
 
-    $.each(global.interactiveCovariates, function(idx, value) {
+    $.each(global.interactiveCovariates, function (idx, value) {
         global.LODChartData[value['column.name']] = null;
     });
 
@@ -418,7 +414,7 @@ function selectGeneProtein(geneID, proteinID, phosID, datasetID, covar) {
     }
 
     let submitData = {
-        urls:[{
+        urls: [{
             url_id: 'geneData',
             url_description: 'Gene Data',
             url: urlGeneData
@@ -434,7 +430,8 @@ function selectGeneProtein(geneID, proteinID, phosID, datasetID, covar) {
             url_id: 'lod',
             url_description: 'LOD Scan Data',
             url: urlLOD
-        }]};
+        }]
+    };
 
     if (urlLODCovar !== null) {
         submitData.urls.push({
@@ -478,7 +475,7 @@ function selectGeneProtein(geneID, proteinID, phosID, datasetID, covar) {
         data: JSON.stringify(submitData),
         retries: 3,
         retryInterval: 1000,
-        success: function(data, status, request) {
+        success: function (data, status, request) {
             global.runningTask = true;
             logDebug('data=', data);
             logDebug('status=', status);
@@ -486,7 +483,7 @@ function selectGeneProtein(geneID, proteinID, phosID, datasetID, covar) {
             logDebug('data.group_id=', data.group_id);
             updateGeneSelect(data.group_id, submitData, geneID, proteinID, phosID, datasetID, covar);
         },
-        error: function(jqXHR, textStatus, errorThrown) {
+        error: function (jqXHR, textStatus, errorThrown) {
             showErrorMessage(errorThrown, textStatus);
         }
     });
