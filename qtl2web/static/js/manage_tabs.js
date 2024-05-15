@@ -61,7 +61,7 @@ function updateGeneSelect(groupID, submitData, geneID, proteinID, phosID, datase
 
                             // 1. gene information
                             if (data.response_data.geneData.status_code === 200) {
-                                global.geneSymbol = data.response_data.geneData.response;
+                                global.geneSymbol = data.response_data.geneData.response.gene[global.geneID].symbol;
                                 displayGeneData(data.response_data.geneData.response.gene);
                             } else {    
                                 displayGeneData(null);
