@@ -358,7 +358,7 @@ function updatePhenotypeSelect(groupID, datasetID, covar) {
 function selectGeneProtein(geneID, proteinID, phosID, datasetID, covar) {
     logDebug(`selectGeneProtein(${geneID}, ${proteinID}, ${phosID}, ${datasetID}, ${covar})`);
 
-    let urlGeneData = `${window.location.protocol}//${apiURL}/api/gene/${geneID}`;
+    let urlGeneData = `${apiURL}/api/gene/${geneID}`;
     urlGeneData += ('?release=' + global.getDataset(datasetID).ensembl_release);
     urlGeneData += ('&species=' + global.getDataset(datasetID).ensembl_species);
 

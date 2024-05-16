@@ -597,7 +597,7 @@ function generateSNPAssocPlot(id, chromosome, location, covar) {
     logDebug('maxPos=', maxPos);
 
     let snpAssocURL = `${rBaseURL}/snpassoc?dataset=${global.datasetID}&id=${id}&chrom=${chromosome}&location=${locationMb}&window_size=${zoomWindow}`;
-    let genesInfoURL = `${window.location.protocol}//${apiURL}/api/exon_info?release=${global.currentDataset.ensembl_release}&species=${global.currentDataset.ensembl_species}&chrom=${chromosome}`;
+    let genesInfoURL = `${apiURL}/api/exon_info?release=${global.currentDataset.ensembl_release}&species=${global.currentDataset.ensembl_species}&chrom=${chromosome}`;
 
     if (covar !== 'additive') {
         snpAssocURL += `&intcovar=${covar}`;
@@ -945,7 +945,7 @@ async function fetchEnsimplSummary(ensemblID) {
     const opts = {};
 
     try {
-        const response = await fetch(`https://${apiURL}/api/gene/${ensemblID}?species=Mm&release=${ensembl}`, opts);
+        const response = await fetch(`${apiURL}/api/gene/${ensemblID}?species=Mm&release=${ensembl}`, opts);
         const searchResult = await response.json();
         if ('message' in searchResult) {
             throw new Error(searchResult.message);

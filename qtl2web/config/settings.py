@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# This file is replaced by project.viewer.settings in the Docker container
+# This file is replaced by project.viewer.settings in Docker container
 #
 ###############################################################################
 
