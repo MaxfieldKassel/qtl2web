@@ -596,7 +596,7 @@ function generateLODPeaksHTML() {
     if (!['mrna', 'protein', 'phos'].includes(dataset.datatype)) {
         logDebug('Not mrna, protein, or phos dataset. dataset.datatype:', dataset.datatype);
         divLODPeaks.html(html);
-        plotLODPeaks(g.DATASETS[g.dataSetID].lodpeaks[covar], maxLOD);
+        plotLODPeaks(global.currentDataset.lodpeaks[covar], -Infinity);
         return;
     }
 
