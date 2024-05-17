@@ -594,7 +594,9 @@ function generateLODPeaksHTML() {
     const divLODPeaks = $('#divLODPeaks');  // Cache the jQuery object for efficiency
 
     if (!['mrna', 'protein', 'phos'].includes(dataset.datatype)) {
+        logDebug('Not mrna, protein, or phos dataset. dataset.datatype:', dataset.datatype);
         divLODPeaks.html(html);
+        plotLODPeaks(g.DATASETS[g.dataSetID].lodpeaks[covar], maxLOD);
         return;
     }
 
