@@ -910,7 +910,6 @@
 
     QTL = function() {
         function init() {
-
             d3.queue()
                 .defer(downloadEnvInfo)
                 .defer(downloadDataSets)
@@ -1111,6 +1110,8 @@
                             let selected = $(this).find(':selected').val();
                             switchDataSet(selected);
                         });
+                        $('#datasetSelect').prop('disabled', true).selectpicker('refresh');
+                        
 
                         // show multiple menu items
                         let htmlNew = `<select id="correlationDatasetSelect" data-width="100%" data-style="btn-secondary btn-sm" class="selectpicker">`;
@@ -1226,6 +1227,8 @@
                                     'url': value.meta.url
                                 };
 
+                                logDebug('ensembl:', global.getDataset(_id).ensembl);
+
                                 let start = 1;
                                 let end = 0;
 
@@ -1256,7 +1259,10 @@
                                 global.getDataset(value.parameters.dataset).lodpeaks = value.result;
                             }
                         });
+                        logDebug('Finished downloading all the peaks and chromosomes...');
+                        $('#datasetSelect').prop('disabled', false).selectpicker('refresh');
                     });
+                   
                 });
             }
 
