@@ -81,10 +81,10 @@
 <div class="inner">
 
     <nav id="dataSetSelectMenu" class="navbar navbar-expand-sm bg-dark navbar-dark fixed-top">
-        <a class="navbar-brand" href="#">{{ config.NAV_TITLE|safe }}</a>
-        <!-- will be filled in programatically //-->
+    <a class="navbar-brand" href="#">{{ config.NAV_TITLE|safe }}</a>
+    <!-- will be filled in programmatically //-->
+</nav>
 
-    </nav>
 
     <div class="container-fluid">
 
@@ -1093,6 +1093,19 @@
                                     `;
 
                         $('#dataSetSelectMenu').append(html);
+                        
+
+                        // Add the right link if needed:
+                        let html2 = `<ul class="navbar-nav ml-auto">
+                            {% if config.EXTERNAL_LINK %}
+                            <li class="nav-item">
+                                <a class="text-light nav-link" href="{{ config.EXTERNAL_LINK }}" target="_blank"><i class="fas fa-external-link-alt"></i> {{ config.EXTERNAL_LINK_NAME }}</a>
+                            </li>
+                            {% endif %}
+                        </ul>`;
+
+                        $('#dataSetSelectMenu').append(html2);
+
 
                         // display datasets by sorted name
                         for (let d in datasets_dropdown) {
